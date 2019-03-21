@@ -62,3 +62,6 @@ class AppWrapper extends Component {
 ReactDOM.render(<AppWrapper />, document.getElementById('app'))
 
 Styl.addStylesheet()
+
+const VConsole = require('vconsole')
+new VConsole()
