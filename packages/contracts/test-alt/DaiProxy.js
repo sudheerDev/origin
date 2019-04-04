@@ -3,7 +3,7 @@ import helper, { contractPath } from './_helper'
 import { IpfsHash } from './_marketplaceHelpers'
 import { exchangeAbi, exchangeBytecode, factoryAbi, factoryBytecode } from './../_abi/UniswapExchange.js'
 
-async function deployUniswapExchange({ web3, Owner, DaiContractAddress, deployWithBytecode }) {
+async function deployUniswapExchange({ web3, Owner, DaiStableCoin, deployWithBytecode }) {
 
   const factory = await deployWithBytecode({
     abi: factoryAbi,
@@ -26,7 +26,7 @@ async function deployUniswapExchange({ web3, Owner, DaiContractAddress, deployWi
     .send({ from: Owner, gas: 4000000 })
 
   let res = await factory.methods
-    .createExchange(DaiContractAddress)
+    .createExchange(DaiStableCoin._address)
     .send({ from: Owner, gas: 4000000 })
 
   const daiExchange = new web3.eth.Contract(exchangeAbi, res.events.NewExchange.returnValues.exchange)
@@ -34,10 +34,21 @@ async function deployUniswapExchange({ web3, Owner, DaiContractAddress, deployWi
   console.log(`------------------------------------------------------------------`)
   console.log(`DAI Exchange created at ${daiExchange._address}`)
 
+
+  await DaiStableCoin.methods.approve(daiExchange._address, 10000).send({
+    from: Owner
+  })
+
+  console.log(`------------------------------------------------------------------`)
+  console.log(`Approved`)
+
   const blockNumber = await web3.eth.getBlockNumber()
   const block = await web3.eth.getBlock(blockNumber)
 
-  await daiExchange.methods.addLiquidity(web3.utils.toWei('0.5', 'ether'), web3.utils.toWei('5000', 'ether'), block.timestamp + 3600).send({
+  console.log(`------------------------------------------------------------------`)
+  console.log(`Block`)
+
+  await daiExchange.methods.addLiquidity(web3.utils.toWei('0.5', 'ether'), 5000, block.timestamp + 3600).send({
     from: Owner, gas: 4000000, value: web3.utils.toWei('0.5', 'ether')
   })
 
@@ -134,7 +145,7 @@ describe('DaiProxy.sol', async function() {
     UniswapExchange = await deployUniswapExchange({
       web3,
       Owner,
-      DaiContractAddress: DaiStableCoin._address,
+      DaiStableCoin,
       deployWithBytecode
     });
 
@@ -182,19 +193,25 @@ describe('DaiProxy.sol', async function() {
         block.timestamp + 60 * 120,
         Affiliate,
         2,
-        "1000000000000000000",
+        web3.utils.toWei('1', 'ether'),
         MarketArbitrator._address
       ];
 
       const result = await DaiProxy.methods
         .makeOfferWithDai(...args)
-        .send({ from: Buyer, value: "1000000000000000000", gas: 100000000 })
+        .send({ from: Buyer, value: web3.utils.toWei('1', 'ether'), gas: 4000000 })
 
       assert(result)
 
+      console.log(result)
+
+      const balance = await DaiStableCoin.methods.balanceOf(Owner).call();
+      console.log(balance)
       console.log(`---------------------------------DONE---------------------`)
-      const offer = await Marketplace.methods.offers(listingID, 0).call()
-      assert.equal(offer.buyer, Buyer)
+
+      const offers = await Marketplace.methods.totalOffers(listingID).call()
+      assert.equal(offers, 1)
+      console.log(offers)
     })
   })
 })
