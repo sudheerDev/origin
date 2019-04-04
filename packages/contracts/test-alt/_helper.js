@@ -139,10 +139,17 @@ export default async function testHelper(contracts, provider) {
       )
     }
 
-    return deployWithBytecode({ abi, bytecode, from, args, log, trackGas });
+    return deployWithBytecode({
+      abi,
+      bytecode: bytecode.object,
+      from, 
+      args, 
+      log, 
+      trackGas 
+    });
   }
 
-  async function deployWithBytecode({ abi, bytecode, from, args, log, trackGas }) {
+  async function deployWithBytecode({ abi, bytecode, from, args, log, trackGas, deployGas }) {
     // Instantiate the web3 contract using the abi and bytecode output from solc
     const Contract = new web3.eth.Contract(abi)
     let contract
@@ -151,8 +158,9 @@ export default async function testHelper(contracts, provider) {
       const chainId = web3.eth.net.getId()
 
       const data = await Contract.deploy({
-        data: '0x' + bytecode.object,
-        arguments: args
+        data: bytecode.startsWith('0x') ? bytecode : '0x' + bytecode,
+        arguments: args,
+        gas: deployGas
       }).encodeABI()
 
       web3.eth
