@@ -1,6 +1,15 @@
 import assert from 'assert'
 import helper, { contractPath } from './_helper'
-import { ZERO_ADDRESS, IpfsHash } from './_marketplaceHelpers';
+import { ZERO_ADDRESS, IpfsHash } from './_marketplaceHelpers'
+import Table from 'cli-table'
+import GasPriceInDollars from './_gasPriceInDollars'
+
+const gasPriceInDollars = GasPriceInDollars({
+  gasPriceGwei: 8,
+  pricePerEth: 170
+})
+const gasUsed = []
+const trackGas = id => receipt => gasUsed.push([id, receipt.cumulativeGasUsed])
 
 describe('Identity', async function() {
   let web3, accounts, deploy
@@ -35,7 +44,8 @@ describe('Identity', async function() {
       from: Forwarder,
       path: `${contractPath}/identity`,
       file: 'IdentityProxy.sol',
-      args: [NewUserAccount.address, Marketplace._address]
+      args: [NewUserAccount.address, Marketplace._address],
+      trackGas
     })
   }
 
@@ -58,10 +68,13 @@ describe('Identity', async function() {
       
       await deployNewProxyContract()
 
-      const result = await IdentityProxy.methods.forward(sign.signature, signer, txData).send({
-        from: Forwarder,
-        gas: 4000000
-      })
+      const result = await IdentityProxy.methods
+        .forward(sign.signature, signer, txData)
+        .send({
+          from: Forwarder,
+          gas: 4000000
+        })
+        .once('receipt', trackGas('Create Listing w/ Proxy'))
 
       assert(result)
 
@@ -71,5 +84,31 @@ describe('Identity', async function() {
       const listing = await Marketplace.methods.listings(0).call()
       assert.equal(listing.seller, IdentityProxy._address)
     })
+  })
+
+  after(function() {
+    console.log()
+
+    const gasTable = new Table({
+      chars: { mid: '', 'left-mid': '', 'mid-mid': '', 'right-mid': '' },
+      colAligns: ['left', 'right', 'right'],
+      head: ['Transaction', 'Min', 'Max', 'Min $', 'Max $']
+    })
+
+    let used = []
+    gasUsed.forEach(g => {
+      const existing = used.findIndex(u => u[0] === g[0])
+      if (existing < 0) {
+        used.push([g[0], g[1], g[1]])
+      } else {
+        if (g[1] < used[existing][1]) used[existing][1] = g[1]
+        if (g[2] > used[existing][2]) used[existing][2] = g[2]
+      }
+    })
+
+    used.forEach(u => {
+      gasTable.push([...u, gasPriceInDollars(u[1]), gasPriceInDollars(u[2])])
+    })
+    console.log(gasTable.toString())
   })
 })
