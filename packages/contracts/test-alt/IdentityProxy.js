@@ -13,17 +13,10 @@ const trackGas = id => receipt => gasUsed.push([id, receipt.cumulativeGasUsed])
 
 describe('Identity', async function() {
   let web3, accounts, deploy
-  let Marketplace,
-    Forwarder,
-    NewUserAccount,
-    IdentityProxy
+  let Marketplace, Forwarder, NewUserAccount, IdentityProxy, ProxyFactory
 
   before(async function() {
-    ({
-      web3,
-      deploy,
-      accounts
-    } = await helper(`${__dirname}/..`))
+    ({ web3, deploy, accounts } = await helper(`${__dirname}/..`))
 
     // Addresss that pays for new user
     Forwarder = accounts[0]
@@ -37,35 +30,54 @@ describe('Identity', async function() {
       file: 'Marketplace.sol',
       args: [ZERO_ADDRESS]
     })
+
+    ProxyFactory = await deploy('ProxyFactory', {
+      from: accounts[0],
+      path: `${contractPath}/identity`,
+      file: 'ProxyFactory.sol'
+    })
   })
 
   async function deployNewProxyContract() {
-    IdentityProxy = await deploy('IdentityProxy', {
+    const IdentityProxyImp = await deploy('IdentityProxy', {
       from: Forwarder,
       path: `${contractPath}/identity`,
       file: 'IdentityProxy.sol',
       args: [NewUserAccount.address, Marketplace._address],
       trackGas
     })
+
+    const res = await ProxyFactory.methods
+      .createProxy(
+        IdentityProxyImp.options.address,
+        `0x${IdentityProxyImp.options.bytecode}`
+      )
+      .send({ from: Forwarder, gas: 4000000 })
+      .once('receipt', trackGas('Create Proxy from Factory'))
+
+    IdentityProxy = new web3.eth.Contract(
+      IdentityProxyImp.options.jsonInterface,
+      res.events.ProxyDeployed.returnValues.targetAddress
+    )
   }
 
-  describe('IdentityProxy.sol', function () {
-    it('should forward createListing tx from user proxy', async function () {
-      const txData = Marketplace.methods.createListing(
-        IpfsHash, 0, Marketplace._address
-      ).encodeABI()
-      
+  describe('IdentityProxy.sol', function() {
+    it('should forward createListing tx from user proxy', async function() {
+      const txData = Marketplace.methods
+        .createListing(IpfsHash, 0, Marketplace._address)
+        .encodeABI()
+
       const dataToSign = web3.utils.soliditySha3(
         { t: 'address', v: NewUserAccount.address }, // Signer
         { t: 'address', v: Marketplace._address }, // Marketplace address
         { t: 'uint256', v: web3.utils.toWei('0', 'ether') }, // value
         { t: 'bytes', v: txData },
-        { t: 'uint256', v: 0 }, // nonce
+        { t: 'uint256', v: 0 } // nonce
       )
 
-      const signer = NewUserAccount.address;
+      const signer = NewUserAccount.address
       const sign = web3.eth.accounts.sign(dataToSign, NewUserAccount.privateKey)
-      
+
       await deployNewProxyContract()
 
       const result = await IdentityProxy.methods
@@ -95,7 +107,7 @@ describe('Identity', async function() {
       head: ['Transaction', 'Min', 'Max', 'Min $', 'Max $']
     })
 
-    let used = []
+    const used = []
     gasUsed.forEach(g => {
       const existing = used.findIndex(u => u[0] === g[0])
       if (existing < 0) {
