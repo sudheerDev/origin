@@ -18,7 +18,7 @@ describe('Identity', async function() {
   before(async function() {
     ({ web3, deploy, accounts } = await helper(`${__dirname}/..`))
 
-    // Addresss that pays for new user
+    // Address that pays for new user
     Forwarder = accounts[0]
 
     // A dummy user address with zero ether
