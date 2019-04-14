@@ -71,9 +71,9 @@ const verifySign = async ({ web3, sign, signer, txData }) => {
   try {
     const msgBuffer = utils.toBuffer(signedData)
 
-    const prefix = new Buffer("\x19Ethereum Signed Message:\n")
+    const prefix = Buffer.from("\x19Ethereum Signed Message:\n")
     const prefixedMsg = utils.sha3(
-      Buffer.concat([prefix, new Buffer(String(msgBuffer.length)), msgBuffer])
+      Buffer.concat([prefix, Buffer.from(String(msgBuffer.length)), msgBuffer])
     )
 
     const r = utils.toBuffer(sign.slice(0,66))
@@ -89,9 +89,14 @@ const verifySign = async ({ web3, sign, signer, txData }) => {
   }
 }
 
+const verifyFunctionSignature = async ({ functionSignature, data }) => {
+  return data.toLowerCase().startsWith(functionSignature)
+}
+
 module.exports = {
   getWeb3,
   deployProxy,
   verifySign,
+  verifyFunctionSignature,
   forwardTx
 }
