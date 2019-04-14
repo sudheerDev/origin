@@ -1,5 +1,6 @@
 const Web3 = require('web3')
 const IdentityProxyContract = require('@origin/contracts/build/contracts/IdentityProxy')
+const utils = require('ethereumjs-utils')
 
 const getWeb3 = (provider = process.env.WEB3_PROVIDER) => {
   const web3 = new Web3(provider)
@@ -55,7 +56,38 @@ const forwardTx = async ({ web3, IdentityProxy, sign, signer, txData }) => {
   })
 }
 
-const verifySign = () => {}
+const verifySign = async ({ web3, sign, signer, txData }) => {
+  const { MARKETPLACE_ADDRESS } = process.env
+  const nonce = 0 // Should get from database
+
+  const signedData = web3.utils.soliditySha3(
+    { t: 'address', v: signer }, // Signer
+    { t: 'address', v: MARKETPLACE_ADDRESS }, // Marketplace address
+    { t: 'uint256', v: web3.utils.toWei('0', 'ether') }, // value
+    { t: 'bytes', v: txData },
+    { t: 'uint256', v: nonce }, // nonce
+  )
+
+  try {
+    const msgBuffer = utils.toBuffer(signedData)
+
+    const prefix = new Buffer("\x19Ethereum Signed Message:\n")
+    const prefixedMsg = utils.sha3(
+      Buffer.concat([prefix, new Buffer(String(msgBuffer.length)), msgBuffer])
+    )
+
+    const r = utils.toBuffer(sign.slice(0,66))
+    const s = utils.toBuffer('0x' + sign.slice(66,130))
+    const v = utils.bufferToInt(utils.toBuffer('0x' + sign.slice(130,132)))
+    
+    const pub = utils.ecrecover(prefixedMsg, v, r, s)
+    const address = '0x' + utils.pubToAddress(pub).toString('hex')
+
+    return address.toLowerCase() === signer.toLowerCase()
+  } catch (e) {
+    return false
+  }
+}
 
 module.exports = {
   getWeb3,

@@ -31,6 +31,7 @@
     "cors": "^2.8.5",
     "dotenv": "^7.0.0",
     "envkey": "^1.2.6",
+    "ethereumjs-utils": "^5.2.5",
     "express": "^4.16.4",
     "express-session": "^1.16.1",
     "mock-require": "^3.0.3",

@@ -45,7 +45,7 @@ async function createListingWithProxy(_, { sign, signer, txData }) {
   try {
     const response = await fetch(url, {
       headers: { 'content-type': 'application/json' },
-      // credentials: 'include',
+      credentials: 'include',
       method: 'POST',
       body: JSON.stringify({
         sign,
@@ -55,6 +55,13 @@ async function createListingWithProxy(_, { sign, signer, txData }) {
     })
 
     const data = await response.json()
+
+    if (response.status >= 400) {
+      return {
+        success: false,
+        reason: data.errors[0]
+      }
+    }
   
     return {
       success: true,
@@ -64,7 +71,7 @@ async function createListingWithProxy(_, { sign, signer, txData }) {
   } catch (e) {
     return {
       success: false,
-      reason: e.message
+      reason: 'Something went wrong :('
     }
   }
 

@@ -197,7 +197,7 @@ class CreateListing extends Component {
       return
     }
 
-    this.setState({ error: 'tx-error', errorData: reason, waitFor: false })
+    this.setState({ error: reason, errorData: JSON.parse(data), waitFor: false })
   }
 
   renderCreateListingWithProxy() {
@@ -239,7 +239,7 @@ class CreateListing extends Component {
                   {this.renderWaitModal()}
                   {this.state.error && (
                     <TransactionError
-                      canCreateProxy={true}
+                      canCreateProxy={this.state.error === 'no-balance'}
                       reason={this.state.error}
                       data={this.state.errorData}
                       onClose={() => this.setState({ error: false })}

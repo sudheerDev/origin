@@ -14,19 +14,25 @@ router.post('/', createListingProxyValidation, async (req, res) => {
 
   const { sign, signer, txData } = req.body
 
-  // 1. Expect sign, signer address and txData
+  const signValid = await verifySign({ web3, sign, signer, txData })
+  // 1. Verify sign
+  if (!signValid) {
+    res.status(400)
+    res.send({
+      errors: ['Cannot verify your signature']
+    })
+    return
+  }
 
-  // 2. Verify sign
+  // 2. Verify txData and check function signature
 
-  // 3. Verify txData and check function signature
-
-  // 4. Deploy or get user's proxy instance
+  // 3. Deploy or get user's proxy instance
   const IdentityProxy = await deployProxy({
     web3,
     forAddress: signer
   })
 
-  // 5. Call the forward method
+  // 4. Call the forward method
   const txHash = await forwardTx({
     web3,
     IdentityProxy,
@@ -34,6 +40,9 @@ router.post('/', createListingProxyValidation, async (req, res) => {
     signer,
     txData
   })
+
+  // 5. Increment Nonce in DB
+  // TODO
 
   res.status(200)
   res.send({
