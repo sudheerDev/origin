@@ -6,6 +6,9 @@ import { fbt } from 'fbt-runtime'
 // Note that this is NOT the same as this file. This `CreateListing`
 // is under `origin-dapp/src/mutations`
 import CreateListingMutation from 'mutations/CreateListing'
+import SignMessageMutation from 'mutations/SignMessage'
+import CreateListingWithProxyMutation from 'mutations/CreateListingWithProxy'
+import StoreToIPFSMutation from 'mutations/StoreToIPFS'
 
 import TransactionError from 'components/TransactionError'
 import WaitForTransaction from 'components/WaitForTransaction'
@@ -26,35 +29,11 @@ class CreateListing extends Component {
     if (this.state.redirect) {
       return <Redirect to={this.state.redirect} push />
     }
-    return (
-      <Mutation
-        mutation={CreateListingMutation}
-        onCompleted={({ createListing }) => {
-          this.setState({ waitFor: createListing.id })
-        }}
-        onError={errorData =>
-          this.setState({ waitFor: false, error: 'mutation', errorData })
-        }
-      >
-        {createListing => (
-          <>
-            <button
-              className={this.props.className}
-              onClick={() => this.onClick(createListing)}
-              children={this.props.children}
-            />
-            {this.renderWaitModal()}
-            {this.state.error && (
-              <TransactionError
-                reason={this.state.error}
-                data={this.state.errorData}
-                onClose={() => this.setState({ error: false })}
-              />
-            )}
-          </>
-        )}
-      </Mutation>
-    )
+    if (this.props.cannotTransact === 'no-balance') {
+      return this.renderCreateListingWithProxy()
+    }
+
+    return this.renderCreateListing()
   }
 
   onClick(createListing) {
@@ -130,6 +109,150 @@ class CreateListing extends Component {
         )}
       </WaitForTransaction>
     )
+  }
+
+  renderCreateListing() {
+    return <Mutation
+      mutation={CreateListingMutation}
+      onCompleted={({ createListing }) => {
+        this.setState({ waitFor: createListing.id })
+      }}
+      onError={errorData =>
+        this.setState({ waitFor: false, error: 'mutation', errorData })
+      }
+    >
+      {createListing => (
+        <>
+          <button
+            className={this.props.className}
+            onClick={() => this.onClick(createListing)}
+            children={this.props.children}
+          />
+          {this.renderWaitModal()}
+          {this.state.error && (
+            <TransactionError
+              reason={this.state.error}
+              data={this.state.errorData}
+              onClose={() => this.setState({ error: false })}
+            />
+          )}
+        </>
+      )}
+    </Mutation>
+  }
+
+  storeToIPFS(storeToIPFS) {
+    this.setState({ waitFor: 'pending' })
+
+    const { listing, tokenBalance, wallet } = this.props
+
+    const variables = applyListingData(this.props, {
+      deposit: tokenBalance >= Number(listing.boost) ? listing.boost : '0',
+      depositManager: wallet,
+      from: wallet
+    })
+
+    storeToIPFS({
+      variables
+    })
+  }
+
+  signMessage(signMessage, { ipfsHash, txData, dataToSign }) {
+    const { wallet } = this.props
+
+    this.setState({
+      proxyData: {
+        // ipfsHash,
+        txData
+        // dataToSign
+      }
+    })
+
+    signMessage({
+      variables: {
+        address: wallet,
+        message: dataToSign
+      }
+    })
+  }
+
+  createListingWithProxy(createListingWithProxy, sign) {
+    const { txData } = this.state.proxyData
+    const { wallet } = this.props
+
+    createListingWithProxy({
+      variables: {
+        txData,
+        sign,
+        signer: wallet
+      }
+    })
+  }
+
+  onListingCreated({ success, reason, data }) {
+    if (success) {
+      // const { proxyAddress, txHash } = JSON.parse(data)
+      // Where to show proxy addrss and tx hash??
+      this.setState({ error: false, waitFor: 'proxy-creation' })
+      return
+    }
+
+    this.setState({ error: 'tx-error', errorData: reason, waitFor: false })
+  }
+
+  renderCreateListingWithProxy() {
+    return <Mutation
+      mutation={CreateListingWithProxyMutation}
+      onCompleted={({ createListingWithProxy }) => this.onListingCreated(createListingWithProxy) }
+      onError={errorData =>
+        this.setState({ waitFor: false, error: 'mutation', errorData })
+      }
+    >
+      {createListingWithProxy => (
+        <Mutation
+          mutation={SignMessageMutation}
+          onCompleted={({ signMessage }) => this.createListingWithProxy(createListingWithProxy, signMessage)}
+          onError={errorData =>
+            this.setState({ waitFor: false, error: 'mutation', errorData })
+          }
+        >
+          {signMessage => (
+            <Mutation
+              mutation={StoreToIPFSMutation}
+              onCompleted={({ storeToIPFS }) => this.signMessage(signMessage, storeToIPFS)}
+              onError={errorData =>
+                this.setState({ waitFor: false, error: 'mutation', errorData })
+              }
+            >
+              {storeToIPFS => (
+                <>
+                  <button
+                    className={this.props.className}
+                    onClick={() => {
+                      this.setState({
+                        error: this.props.cannotTransact,
+                        errorData: this.props.cannotTransactData
+                      })
+                    }}
+                    children={this.props.children}
+                  />
+                  {this.renderWaitModal()}
+                  {this.state.error && (
+                    <TransactionError
+                      canCreateProxy={true}
+                      reason={this.state.error}
+                      data={this.state.errorData}
+                      onClose={() => this.setState({ error: false })}
+                      onCreateProxy={() => this.storeToIPFS(storeToIPFS)}
+                    />
+                  )}
+                </>
+              )}
+            </Mutation>
+          )}
+        </Mutation>
+      )}
+    </Mutation>
   }
 }
 

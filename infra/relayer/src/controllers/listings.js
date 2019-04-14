@@ -27,7 +27,7 @@ router.post('/', createListingProxyValidation, async (req, res) => {
   })
 
   // 5. Call the forward method
-  await forwardTx({
+  const txHash = await forwardTx({
     web3,
     IdentityProxy,
     sign,
@@ -37,7 +37,8 @@ router.post('/', createListingProxyValidation, async (req, res) => {
 
   res.status(200)
   res.send({
-    userProxy: IdentityProxy._address
+    userProxy: IdentityProxy._address,
+    txHash
   })
 })
 

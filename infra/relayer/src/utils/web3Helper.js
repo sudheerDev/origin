@@ -48,7 +48,11 @@ const forwardTx = async ({ web3, IdentityProxy, sign, signer, txData }) => {
     value: 0
   })
 
-  await web3.eth.sendSignedTransaction(signedTx.rawTransaction)
+  return new Promise((resolve, reject) => {
+    web3.eth.sendSignedTransaction(signedTx.rawTransaction)
+      .once('transactionHash', resolve)
+      .catch(reject)
+  })
 }
 
 const verifySign = () => {}

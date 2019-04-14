@@ -179,7 +179,8 @@ const Configs = {
     attestationIssuer: '0x5be37555816d258f5e316e0f84D59335DB2400B2',
     arbitrator: '0x821aEa9a577a9b44299B9c15c88cf3087F3b5544',
     linker: `http://${LINKER_HOST}:3008`,
-    linkerWS: `ws://${LINKER_HOST}:3008`
+    linkerWS: `ws://${LINKER_HOST}:3008`,
+    relayer: `http://${HOST}:5100`
   },
   truffle: {
     provider: `http://${HOST}:8545`,

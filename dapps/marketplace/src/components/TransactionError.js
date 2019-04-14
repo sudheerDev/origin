@@ -17,6 +17,8 @@ class CannotTransact extends Component {
       onClose: () => this.props.onClose()
     }
 
+    const canCreateProxy = this.props.canCreateProxy
+
     let reason = this.props.reason
     if (reason === 'load-error') {
       reason = fbt('Error loading wallet status', 'TransactionError.loadWallet')
@@ -24,8 +26,10 @@ class CannotTransact extends Component {
       reason = fbt('Error loading wallet status', 'TransactionError.loadWallet')
     } else if (reason === 'no-wallet') {
       reason = fbt('No wallet detected', 'TransactionError.noWalletDetected')
-    } else if (reason === 'no-balance') {
+    } else if (!canCreateProxy && reason === 'no-balance') {
       reason = fbt('Your wallet has no funds', 'TransactionError.noBalance')
+    } else if (reason === 'no-balance') {
+      reason = fbt('Your wallet has no funds. Would you like to allow us to pay the gas fee to create the listing?', 'TransactionError.noBalanceCreateProxy')
     } else if (reason === 'wrong-network') {
       reason = fbt(
         'Please switch MetaMask to ' + fbt.param('network', this.props.data),
@@ -58,16 +62,42 @@ class CannotTransact extends Component {
       <div className="make-offer-modal">
         <div className="error-icon" />
         <div>{reason}</div>
-        <button
-          href="#"
-          className="btn btn-outline-light"
-          onClick={() =>
-            this.props.contentOnly && this.props.onClose
-              ? this.props.onClose()
-              : this.setState({ shouldClose: true })
-          }
-          children={fbt('OK', 'OK')}
-        />
+        { !canCreateProxy && 
+          <button
+            href="#"
+            className="btn btn-outline-light"
+            onClick={() =>
+              this.props.contentOnly && this.props.onClose
+                ? this.props.onClose()
+                : this.setState({ shouldClose: true })
+            }
+            children={fbt('OK', 'OK')}
+          />
+        }
+        { canCreateProxy && 
+          <>
+            <button
+              href="#"
+              className="btn btn-outline-light"
+              onClick={() =>
+                this.props.contentOnly && this.props.onClose
+                  ? this.props.onClose()
+                  : this.setState({ shouldClose: true })
+              }
+              children={fbt('No, thank you', 'noThankYou')}
+            />
+            <button
+              href="#"
+              className="btn btn-outline-light"
+              onClick={() =>
+                this.props.onCreateProxy
+                  ? this.props.onCreateProxy()
+                  : this.setState({ shouldClose: true })
+              }
+              children={fbt('Yes', 'Yes')}
+            />
+          </>
+        }
       </div>
     )
 

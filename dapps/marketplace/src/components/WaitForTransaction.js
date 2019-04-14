@@ -115,6 +115,42 @@ class WaitForTransaction extends Component {
           </Modal>
         </>
       )
+    } else if (id === 'proxy-creation') {
+      const content = (
+        <div className="make-offer-modal">
+          <div>
+            <fbt desc="WaitForTransaction.waitForProxyCreation">
+              We have paid for the gas on your behalf. Your listing should appear shortly.
+            </fbt>
+          </div>
+          <button
+            href="#"
+            className="btn btn-outline-light"
+            onClick={() =>
+              this.props.contentOnly && this.props.onClose
+                ? this.props.onClose()
+                : this.setState({ shouldClose: true })
+            }
+            children={fbt('OK', 'OK')} />
+        </div>
+      )
+      if (this.props.contentOnly) {
+        return content
+      }
+      return (
+        <>
+          <Modal
+            shouldClose={this.state.shouldClose}
+            onClose={() => {
+              this.setState({ shouldClose: false }, () => {
+                this.props.onClose ? this.props.onClose() : null
+              })
+            }}
+          >
+            {content}
+          </Modal>
+        </>
+      )
     }
 
     const poll = window.transactionPoll || 3000

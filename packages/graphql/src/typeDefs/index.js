@@ -9,6 +9,7 @@ import CreatorConfig from './CreatorConfig'
 import WalletLinker from './WalletLinker'
 import Currency from './Currency'
 import Uniswap from './Uniswap'
+import Relayer from './Relayer'
 
 export default [
   Common,
@@ -21,5 +22,6 @@ export default [
   CreatorConfig,
   WalletLinker,
   Currency,
-  Uniswap
+  Uniswap,
+  Relayer
 ]

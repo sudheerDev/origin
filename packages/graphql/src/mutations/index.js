@@ -55,12 +55,15 @@ import uniswapInitializeFactory from './uniswap/uniswapInitializeFactory'
 import uniswapCreateExchange from './uniswap/uniswapCreateExchange'
 import uniswapAddLiquidity from './uniswap/uniswapAddLiquidity'
 
+import createListingWithProxy, { storeToIPFS } from './relayer/createListing'
+
 export default {
   acceptOffer,
   addAffiliate,
   addData,
   addFunds,
   createListing,
+  createListingWithProxy,
   createWallet,
   deployIdentity,
   deployIdentityEvents,
@@ -85,6 +88,7 @@ export default {
   setActiveWallet,
   setNetwork,
   signMessage,
+  storeToIPFS,
   swapToToken,
   toggleMetaMask,
   transferToken,
