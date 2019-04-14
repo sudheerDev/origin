@@ -6,11 +6,7 @@ export default gql`
     $signer: String!
     $txData: String!
   ) {
-    createListingWithProxy(
-      sign: $sign
-      signer: $signer
-      txData: $txData
-    ) {
+    createListingWithProxy(sign: $sign, signer: $signer, txData: $txData) {
       success
       reason
       data

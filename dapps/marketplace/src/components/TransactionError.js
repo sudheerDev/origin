@@ -29,7 +29,10 @@ class CannotTransact extends Component {
     } else if (!canCreateProxy && reason === 'no-balance') {
       reason = fbt('Your wallet has no funds', 'TransactionError.noBalance')
     } else if (reason === 'no-balance') {
-      reason = fbt('Your wallet has no funds. Would you like to allow us to pay the gas fee to create the listing?', 'TransactionError.noBalanceCreateProxy')
+      reason = fbt(
+        'Your wallet has no funds. Would you like to allow us to pay the gas fee to create the listing?',
+        'TransactionError.noBalanceCreateProxy'
+      )
     } else if (reason === 'wrong-network') {
       reason = fbt(
         'Please switch MetaMask to ' + fbt.param('network', this.props.data),
@@ -62,7 +65,7 @@ class CannotTransact extends Component {
       <div className="make-offer-modal">
         <div className="error-icon" />
         <div>{reason}</div>
-        { !canCreateProxy && 
+        {!canCreateProxy && (
           <button
             href="#"
             className="btn btn-outline-light"
@@ -73,8 +76,8 @@ class CannotTransact extends Component {
             }
             children={fbt('OK', 'OK')}
           />
-        }
-        { canCreateProxy && 
+        )}
+        {canCreateProxy && (
           <>
             <button
               href="#"
@@ -97,7 +100,7 @@ class CannotTransact extends Component {
               children={fbt('Yes', 'Yes')}
             />
           </>
-        }
+        )}
       </div>
     )
 

@@ -1,6 +1,6 @@
 import { post } from '@origin/ipfs'
 import contracts from '../../contracts'
-import { listingInputToIPFS } from '../marketplace/createListing';
+import { listingInputToIPFS } from '../marketplace/createListing'
 
 /**
  * Stores the given listing to IPFS,
@@ -15,16 +15,14 @@ async function storeToIPFS(_, input) {
 
   const deposit = contracts.web3.utils.toWei(String(input.deposit), 'ether')
 
-  const txData = contracts.marketplaceExec.methods.createListing(
-    ipfsHash,
-    deposit,
-    depositManager
-  ).encodeABI()
+  const txData = contracts.marketplaceExec.methods
+    .createListing(ipfsHash, deposit, depositManager)
+    .encodeABI()
 
-  const dataToSign = web3.utils.soliditySha3(
+  const dataToSign = contracts.web3.utils.soliditySha3(
     { t: 'address', v: from }, // Signer
     { t: 'address', v: contracts.marketplaceExec._address }, // Marketplace address
-    { t: 'uint256', v: web3.utils.toWei('0', 'ether') }, // value
+    { t: 'uint256', v: contracts.web3.utils.toWei('0', 'ether') }, // value
     { t: 'bytes', v: txData },
     // Should get nonce from DB
     { t: 'uint256', v: 0 } // nonce
@@ -62,7 +60,7 @@ async function createListingWithProxy(_, { sign, signer, txData }) {
         reason: data.errors[0]
       }
     }
-  
+
     return {
       success: true,
       reason: null,
@@ -74,7 +72,6 @@ async function createListingWithProxy(_, { sign, signer, txData }) {
       reason: 'Something went wrong :('
     }
   }
-
 }
 
 export { storeToIPFS }

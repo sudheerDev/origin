@@ -120,7 +120,8 @@ class WaitForTransaction extends Component {
         <div className="make-offer-modal">
           <div>
             <fbt desc="WaitForTransaction.waitForProxyCreation">
-              We have paid for the gas on your behalf. Your listing should appear shortly.
+              We have paid for the gas on your behalf. Your listing should
+              appear shortly.
             </fbt>
           </div>
           <button
@@ -131,7 +132,8 @@ class WaitForTransaction extends Component {
                 ? this.props.onClose()
                 : this.setState({ shouldClose: true })
             }
-            children={fbt('OK', 'OK')} />
+            children={fbt('OK', 'OK')}
+          />
         </div>
       )
       if (this.props.contentOnly) {

@@ -112,33 +112,35 @@ class CreateListing extends Component {
   }
 
   renderCreateListing() {
-    return <Mutation
-      mutation={CreateListingMutation}
-      onCompleted={({ createListing }) => {
-        this.setState({ waitFor: createListing.id })
-      }}
-      onError={errorData =>
-        this.setState({ waitFor: false, error: 'mutation', errorData })
-      }
-    >
-      {createListing => (
-        <>
-          <button
-            className={this.props.className}
-            onClick={() => this.onClick(createListing)}
-            children={this.props.children}
-          />
-          {this.renderWaitModal()}
-          {this.state.error && (
-            <TransactionError
-              reason={this.state.error}
-              data={this.state.errorData}
-              onClose={() => this.setState({ error: false })}
+    return (
+      <Mutation
+        mutation={CreateListingMutation}
+        onCompleted={({ createListing }) => {
+          this.setState({ waitFor: createListing.id })
+        }}
+        onError={errorData =>
+          this.setState({ waitFor: false, error: 'mutation', errorData })
+        }
+      >
+        {createListing => (
+          <>
+            <button
+              className={this.props.className}
+              onClick={() => this.onClick(createListing)}
+              children={this.props.children}
             />
-          )}
-        </>
-      )}
-    </Mutation>
+            {this.renderWaitModal()}
+            {this.state.error && (
+              <TransactionError
+                reason={this.state.error}
+                data={this.state.errorData}
+                onClose={() => this.setState({ error: false })}
+              />
+            )}
+          </>
+        )}
+      </Mutation>
+    )
   }
 
   storeToIPFS(storeToIPFS) {
@@ -157,7 +159,7 @@ class CreateListing extends Component {
     })
   }
 
-  signMessage(signMessage, { ipfsHash, txData, dataToSign }) {
+  signMessage(signMessage, { txData, dataToSign }) {
     const { wallet } = this.props
 
     this.setState({
@@ -197,62 +199,78 @@ class CreateListing extends Component {
       return
     }
 
-    this.setState({ error: reason, errorData: JSON.parse(data), waitFor: false })
+    this.setState({
+      error: reason,
+      errorData: JSON.parse(data),
+      waitFor: false
+    })
   }
 
   renderCreateListingWithProxy() {
-    return <Mutation
-      mutation={CreateListingWithProxyMutation}
-      onCompleted={({ createListingWithProxy }) => this.onListingCreated(createListingWithProxy) }
-      onError={errorData =>
-        this.setState({ waitFor: false, error: 'mutation', errorData })
-      }
-    >
-      {createListingWithProxy => (
-        <Mutation
-          mutation={SignMessageMutation}
-          onCompleted={({ signMessage }) => this.createListingWithProxy(createListingWithProxy, signMessage)}
-          onError={errorData =>
-            this.setState({ waitFor: false, error: 'mutation', errorData })
-          }
-        >
-          {signMessage => (
-            <Mutation
-              mutation={StoreToIPFSMutation}
-              onCompleted={({ storeToIPFS }) => this.signMessage(signMessage, storeToIPFS)}
-              onError={errorData =>
-                this.setState({ waitFor: false, error: 'mutation', errorData })
-              }
-            >
-              {storeToIPFS => (
-                <>
-                  <button
-                    className={this.props.className}
-                    onClick={() => {
-                      this.setState({
-                        error: this.props.cannotTransact,
-                        errorData: this.props.cannotTransactData
-                      })
-                    }}
-                    children={this.props.children}
-                  />
-                  {this.renderWaitModal()}
-                  {this.state.error && (
-                    <TransactionError
-                      canCreateProxy={this.state.error === 'no-balance'}
-                      reason={this.state.error}
-                      data={this.state.errorData}
-                      onClose={() => this.setState({ error: false })}
-                      onCreateProxy={() => this.storeToIPFS(storeToIPFS)}
+    return (
+      <Mutation
+        mutation={CreateListingWithProxyMutation}
+        onCompleted={({ createListingWithProxy }) =>
+          this.onListingCreated(createListingWithProxy)
+        }
+        onError={errorData =>
+          this.setState({ waitFor: false, error: 'mutation', errorData })
+        }
+      >
+        {createListingWithProxy => (
+          <Mutation
+            mutation={SignMessageMutation}
+            onCompleted={({ signMessage }) =>
+              this.createListingWithProxy(createListingWithProxy, signMessage)
+            }
+            onError={errorData =>
+              this.setState({ waitFor: false, error: 'mutation', errorData })
+            }
+          >
+            {signMessage => (
+              <Mutation
+                mutation={StoreToIPFSMutation}
+                onCompleted={({ storeToIPFS }) =>
+                  this.signMessage(signMessage, storeToIPFS)
+                }
+                onError={errorData =>
+                  this.setState({
+                    waitFor: false,
+                    error: 'mutation',
+                    errorData
+                  })
+                }
+              >
+                {storeToIPFS => (
+                  <>
+                    <button
+                      className={this.props.className}
+                      onClick={() => {
+                        this.setState({
+                          error: this.props.cannotTransact,
+                          errorData: this.props.cannotTransactData
+                        })
+                      }}
+                      children={this.props.children}
                     />
-                  )}
-                </>
-              )}
-            </Mutation>
-          )}
-        </Mutation>
-      )}
-    </Mutation>
+                    {this.renderWaitModal()}
+                    {this.state.error && (
+                      <TransactionError
+                        canCreateProxy={this.state.error === 'no-balance'}
+                        reason={this.state.error}
+                        data={this.state.errorData}
+                        onClose={() => this.setState({ error: false })}
+                        onCreateProxy={() => this.storeToIPFS(storeToIPFS)}
+                      />
+                    )}
+                  </>
+                )}
+              </Mutation>
+            )}
+          </Mutation>
+        )}
+      </Mutation>
+    )
   }
 }
 
