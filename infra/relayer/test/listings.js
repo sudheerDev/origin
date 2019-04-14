@@ -16,13 +16,10 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 describe('Relayer', () => {
   let web3, accounts, deploy
-  let Forwarder,
-    NewUserAccount,
-    Marketplace,
-    defaultProvider
+  let Forwarder, NewUserAccount, Marketplace, defaultProvider
 
   before(async () => {
-    ({ web3, accounts, deploy, defaultProvider } = await helper())
+    ;({ web3, accounts, deploy, defaultProvider } = await helper())
 
     // Address that pays for new user
     const forwarder = web3.eth.accounts.create()
@@ -58,16 +55,16 @@ describe('Relayer', () => {
   after(() => {})
 
   it('should accept signed data and create a proxy address and forward the transaction', async () => {
-    const txData = Marketplace.methods.createListing(
-      IpfsHash, 0, Marketplace._address
-    ).encodeABI()
-    
+    const txData = Marketplace.methods
+      .createListing(IpfsHash, 0, Marketplace._address)
+      .encodeABI()
+
     const dataToSign = web3.utils.soliditySha3(
       { t: 'address', v: NewUserAccount.address }, // Signer
       { t: 'address', v: Marketplace._address }, // Marketplace address
       { t: 'uint256', v: web3.utils.toWei('0', 'ether') }, // value
       { t: 'bytes', v: txData },
-      { t: 'uint256', v: 0 }, // nonce
+      { t: 'uint256', v: 0 } // nonce
     )
 
     const signer = NewUserAccount.address

@@ -13,12 +13,10 @@ const getWeb3 = (provider = process.env.WEB3_PROVIDER) => {
 const deployProxy = async ({ web3, forAddress }) => {
   const { MARKETPLACE_ADDRESS, FORWARDER_PRIVATE_KEY } = process.env
   const Contract = new web3.eth.Contract(IdentityProxyContract.abi)
-  const data = await Contract
-    .deploy({
-      data: IdentityProxyContract.bytecode,
-      arguments: [forAddress, MARKETPLACE_ADDRESS]
-    })
-    .encodeABI()
+  const data = await Contract.deploy({
+    data: IdentityProxyContract.bytecode,
+    arguments: [forAddress, MARKETPLACE_ADDRESS]
+  }).encodeABI()
 
   const account = web3.eth.accounts.privateKeyToAccount(FORWARDER_PRIVATE_KEY)
 
@@ -30,7 +28,10 @@ const deployProxy = async ({ web3, forAddress }) => {
 
   const instance = await web3.eth.sendSignedTransaction(signedTx.rawTransaction)
 
-  const contract = new web3.eth.Contract(IdentityProxyContract.abi, instance.contractAddress)
+  const contract = new web3.eth.Contract(
+    IdentityProxyContract.abi,
+    instance.contractAddress
+  )
 
   return contract
 }
@@ -52,7 +53,8 @@ const forwardTx = async ({ web3, IdentityProxy, sign, signer, txData }) => {
   })
 
   return new Promise((resolve, reject) => {
-    web3.eth.sendSignedTransaction(signedTx.rawTransaction)
+    web3.eth
+      .sendSignedTransaction(signedTx.rawTransaction)
       .once('transactionHash', resolve)
       .catch(reject)
   })
@@ -67,7 +69,7 @@ const verifySign = async ({ web3, sign, signer, txData }) => {
     { t: 'address', v: MARKETPLACE_ADDRESS }, // Marketplace address
     { t: 'uint256', v: web3.utils.toWei('0', 'ether') }, // value
     { t: 'bytes', v: txData },
-    { t: 'uint256', v: nonce }, // nonce
+    { t: 'uint256', v: nonce } // nonce
   )
 
   try {
@@ -78,10 +80,10 @@ const verifySign = async ({ web3, sign, signer, txData }) => {
       Buffer.concat([prefix, Buffer.from(String(msgBuffer.length)), msgBuffer])
     )
 
-    const r = utils.toBuffer(sign.slice(0,66))
-    const s = utils.toBuffer('0x' + sign.slice(66,130))
-    const v = utils.bufferToInt(utils.toBuffer('0x' + sign.slice(130,132)))
-    
+    const r = utils.toBuffer(sign.slice(0, 66))
+    const s = utils.toBuffer('0x' + sign.slice(66, 130))
+    const v = utils.bufferToInt(utils.toBuffer('0x' + sign.slice(130, 132)))
+
     const pub = utils.ecrecover(prefixedMsg, v, r, s)
     const address = '0x' + utils.pubToAddress(pub).toString('hex')
 

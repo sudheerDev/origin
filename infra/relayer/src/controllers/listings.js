@@ -3,7 +3,13 @@
 const express = require('express')
 const router = express.Router()
 const { createListingProxyValidation } = require('./../utils/validation')
-const { getWeb3, deployProxy, verifySign, verifyFunctionSignature, forwardTx } = require('./../utils/web3Helper')
+const {
+  getWeb3,
+  deployProxy,
+  verifySign,
+  verifyFunctionSignature,
+  forwardTx
+} = require('./../utils/web3Helper')
 const { CREATE_LISTING_FUNCTION_SIGNATURE } = require('./../constants')
 
 /**
@@ -26,7 +32,12 @@ router.post('/', createListingProxyValidation, async (req, res) => {
   }
 
   // 2. Verify txData and check function signature
-  if (!verifyFunctionSignature({ functionSignature: CREATE_LISTING_FUNCTION_SIGNATURE, data: txData })) {
+  if (
+    !verifyFunctionSignature({
+      functionSignature: CREATE_LISTING_FUNCTION_SIGNATURE,
+      data: txData
+    })
+  ) {
     res.status(400)
     res.send({
       errors: ['Invalid function signature']

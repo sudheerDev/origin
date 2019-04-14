@@ -37,20 +37,17 @@ const server = async (web3, provider) => {
 // Deploy the given contract and returns an instance
 const deploy = async ({ web3, abi, bytecode, gas, from, args }) => {
   const Contract = new web3.eth.Contract(abi)
-  const data = await Contract
-    .deploy({
-      data: bytecode,
-      arguments: args
-    })
-    .encodeABI()
+  const data = await Contract.deploy({
+    data: bytecode,
+    arguments: args
+  }).encodeABI()
 
-  const instance = await web3.eth
-    .sendTransaction({
-      data,
-      from,
-      gas,
-      value: 0
-    })
+  const instance = await web3.eth.sendTransaction({
+    data,
+    from,
+    gas,
+    value: 0
+  })
 
   const contract = new web3.eth.Contract(abi, instance.contractAddress)
 
