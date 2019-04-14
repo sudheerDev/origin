@@ -48,5 +48,9 @@
   },
   "localDependencies": {
     "@origin/contracts": "../packages/contracts"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true
   }
 }
