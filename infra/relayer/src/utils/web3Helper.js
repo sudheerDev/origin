@@ -1,3 +1,5 @@
+'use strict'
+
 const Web3 = require('web3')
 const IdentityProxyContract = require('@origin/contracts/build/contracts/IdentityProxy')
 const utils = require('ethereumjs-utils')
@@ -71,7 +73,7 @@ const verifySign = async ({ web3, sign, signer, txData }) => {
   try {
     const msgBuffer = utils.toBuffer(signedData)
 
-    const prefix = Buffer.from("\x19Ethereum Signed Message:\n")
+    const prefix = Buffer.from('\x19Ethereum Signed Message:\n')
     const prefixedMsg = utils.sha3(
       Buffer.concat([prefix, Buffer.from(String(msgBuffer.length)), msgBuffer])
     )

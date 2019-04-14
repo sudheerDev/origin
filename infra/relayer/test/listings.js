@@ -1,13 +1,13 @@
 'use strict'
 
-const chai = require('chai')
-const expect = chai.expect
+// const chai = require('chai')
+// const expect = chai.expect
 const request = require('supertest')
 
 const helper = require('./_helper')
 
 const MarketplaceContract = require('@origin/contracts/build/contracts/V00_Marketplace')
-const IdentityProxyContract = require('@origin/contracts/build/contracts/IdentityProxy')
+// const IdentityProxyContract = require('@origin/contracts/build/contracts/IdentityProxy')
 
 const app = require('../src/app')
 
@@ -70,10 +70,10 @@ describe('Relayer', () => {
       { t: 'uint256', v: 0 }, // nonce
     )
 
-    const signer = NewUserAccount.address;
+    const signer = NewUserAccount.address
     const sign = web3.eth.accounts.sign(dataToSign, NewUserAccount.privateKey)
 
-    const response = await request(app)
+    await request(app)
       .post('/relayer/listings/')
       .send({
         sign: sign.signature,

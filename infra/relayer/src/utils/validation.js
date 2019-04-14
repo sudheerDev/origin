@@ -15,7 +15,7 @@ const handleValidationError = (req, res, next) => {
 
 const hexRegex = /^(0x)?[0-9a-f]+$/i
 
-const isValidHex = (value, { req }) => {
+const isValidHex = (value) => {
   if (!hexRegex.test(value)) {
     throw new Error('Not valid hex')
   }
