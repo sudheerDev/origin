@@ -19,6 +19,7 @@ describe('Relayer', () => {
   let Forwarder, NewUserAccount, Marketplace, defaultProvider
 
   before(async () => {
+    // eslint-disable-next-line no-extra-semi
     ;({ web3, accounts, deploy, defaultProvider } = await helper())
 
     // Address that pays for new user
