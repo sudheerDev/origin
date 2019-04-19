@@ -1,7 +1,9 @@
 fastlane_version '2.53.1'
 
 before_all do
-  ensure_git_branch
+  ensure_git_branch(
+    branch: 'tomlinton/fastlane'
+  )
   ensure_git_status_clean
   git_pull
 end
