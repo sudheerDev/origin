@@ -16,16 +16,13 @@ import apn from 'apn'
 import * as firebase from 'firebase-admin' // AKA "admin"
 
 const ATTESTATION_ACCOUNT = process.env.ATTESTATION_ACCOUNT
-const DAPP_URL = `${process.env.DAPP_URL}#`
+const DAPP_URL = `${process.env.DAPP_URL}`
 
 const API_VERSION = "1"
 
 /*
  * Deprecated but needed to support older versions of Origin Wallet
  */
-const MESSAGING_URL = `${DAPP_URL}/messages`
-const PROFILE_URL = `${DAPP_URL}/profile`
-const SELLING_URL = `${DAPP_URL}/create`
 
 const CODE_EXPIRATION_TIME_MINUTES = 60
 const CODE_SIZE = 16
@@ -337,9 +334,6 @@ class Linker {
       ipfsGateway: origin.ipfsService.gateway,
       ipfsApi: origin.ipfsService.api,
       dappUrl: DAPP_URL,
-      messagingUrl: MESSAGING_URL,
-      profileUrl: PROFILE_URL,
-      sellingUrl: SELLING_URL,
       attestationAccount: ATTESTATION_ACCOUNT,
       perfModeEnabled,
       discoveryServerUrl,

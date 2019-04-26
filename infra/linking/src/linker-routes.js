@@ -278,6 +278,12 @@ router.post('/wr-reg-ref/:accountAddress', async (req, res) => {
   res.send(result)
 })
 
+router.get('/webrtc-attests/:accountAddress', async (req, res) => {
+  const {accountAddress} = req.params
+  const result = await webrtc.getAllAttests(accountAddress)
+  res.send(result)
+})
+
 
 router.post('/webrtc-user-info', async (req, res) => {
   const { ipfsHash } = req.body

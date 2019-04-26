@@ -142,6 +142,24 @@ export default class Webrtc {
     }
   }
 
+  async getAllAttests(ethAddress) {
+    // TODO: this might need to be secured
+    const attestedSites = await db.AttestedSite.findAll({where:{ethAddress}})
+    const result = []
+
+    for (const attestedSite of attestedSites) {
+      const {site, account, accountUrl} = attestedSite
+
+      const inboundLinks = await db.InboundAttest.findAll({where:{attestedSiteId:attestedSite.id}})
+
+      const links = inboundLinks.map(l => l.sanitizedUrl)
+
+      result.push({site, account, url:accountUrl, links})
+    }
+
+    return result
+  }
+
   async registerReferral(ethAddress, attestUrl, referralUrl) {
     const a = new URL(attestUrl)
     const query = querystring.parse(a.search.substring(1))
@@ -161,9 +179,10 @@ export default class Webrtc {
       {
         let attested = await db.AttestedSite.findOne({ where: {ethAddress, site, account}})
         if (!attested) {
-          attested = await db.AttestedSite.insert({ethAddress, site, account, accountUrl, verified:true})
+          attested = await db.AttestedSite.create({ethAddress, site, account, accountUrl, verified:true})
         }
-        await db.InboundAttested.upsert({attestedSiteId:attested.id, ethAddress, url:referralUrl, verified:true, sanitizedUrl})
+        await db.InboundAttest.upsert({attestedSiteId:attested.id, ethAddress, url:referralUrl, verified:true, sanitizedUrl})
+        return true
       }
     }
   }
