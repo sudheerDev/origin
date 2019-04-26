@@ -36,7 +36,7 @@ class Hot {
       )
     }
     const from = this.account.address
-    console.log('Submitting...', cmd, params)
+    console.log('Submitting...', cmd, params, from)
     console.log('Pre market balance...', await web3.eth.getBalance(from))
     const ret = await this.marketplace_adapter.call(cmd, params, { from: from })
     console.log('Post market balance...', await web3.eth.getBalance(from))

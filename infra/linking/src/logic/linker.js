@@ -18,6 +18,8 @@ import * as firebase from 'firebase-admin' // AKA "admin"
 const ATTESTATION_ACCOUNT = process.env.ATTESTATION_ACCOUNT
 const DAPP_URL = `${process.env.DAPP_URL}#`
 
+const API_VERSION = "1"
+
 /*
  * Deprecated but needed to support older versions of Origin Wallet
  */
@@ -327,7 +329,8 @@ class Linker {
     return {}
   }
 
-  getServerInfo() {
+  getServerInfo(currentVersion) {
+    const needUpdate = Number(currentVersion) < API_VERSION
     return {
       providerUrl,
       contractAddresses: origin.contractService.getContractAddresses(),
@@ -339,7 +342,8 @@ class Linker {
       sellingUrl: SELLING_URL,
       attestationAccount: ATTESTATION_ACCOUNT,
       perfModeEnabled,
-      discoveryServerUrl
+      discoveryServerUrl,
+      needUpdate
     }
   }
 

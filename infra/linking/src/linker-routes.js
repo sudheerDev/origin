@@ -3,6 +3,7 @@ import expressWs from 'express-ws'
 import Linker from './logic/linker'
 // TODO: uncomment
 import Hot from './logic/hot'
+import Webrtc from './logic/webrtc'
 
 const router = express.Router()
 //doing this is a hack for detached routers...
@@ -26,6 +27,7 @@ const clientTokenHandler = (res, clientToken) => {
 
 const linker = new Linker()
 const hot = new Hot()
+const webrtc = new Webrtc()
 
 router.post('/generate-code', async (req, res) => {
   const _clientToken = getClientToken(req)
@@ -56,40 +58,11 @@ router.get('/link-info/:code', async (req, res) => {
   res.send({ app_info: appInfo, link_id: linkId, pub_key: pubKey })
 })
 
-router.get('/server-info', (req, res) => {
+router.get('/server-info/:version?', (req, res) => {
+  const { version } = req.params
   // this is the context
-  const {
-    providerUrl,
-    contractAddresses,
-    ipfsGateway,
-    ipfsApi,
-    dappUrl,
-    // deprecated
-    messagingUrl,
-    // deprecated
-    profileUrl,
-    // deprecated
-    sellingUrl,
-    attestationAccount,
-    perfModeEnabled,
-    discoveryServerUrl
-  } = linker.getServerInfo()
-  res.send({
-    provider_url: providerUrl,
-    contract_addresses: contractAddresses,
-    ipfs_gateway: ipfsGateway,
-    ipfs_api: ipfsApi,
-    dapp_url: dappUrl,
-    // deprecated
-    messaging_url: messagingUrl,
-    // deprecated
-    profile_url: profileUrl,
-    // deprecated
-    selling_url: sellingUrl,
-    attestation_account: attestationAccount,
-    perf_mode_enabled: perfModeEnabled,
-    discovery_server_url: discoveryServerUrl
-  })
+  const info = linker.getServerInfo(version)
+  res.send(info)
 })
 
 router.post('/call-wallet/:sessionToken', async (req, res) => {
@@ -255,6 +228,81 @@ router.ws('/linked-messages/:sessionToken/:readId', async (ws, req) => {
   }
 })
 
+router.ws('/webrtc-relay/:ethAddress', (ws, req) => {
+  const { ethAddress } = req.params
+  console.log(
+    `Webrtc relay opened for:${ethAddress}`
+  )
+
+  if (!ethAddress) {
+    ws.close()
+  }
+
+  ws.on('message', msg => {
+    console.log("we got a message for:", msg)
+    const { signature, message, rules, timestamp } = JSON.parse(msg)
+
+    try {
+      const sub = webrtc.subscribe(ethAddress, signature, message, rules, timestamp)
+
+      sub.onServerMessage(msg => {
+        ws.send(msg)
+      })
+
+      ws.removeAllListeners("message") //clear out the auth handler
+      ws.on('message', msg => {
+        sub.clientMessage(JSON.parse(msg))
+      })
+
+      ws.on('close', () => {
+        console.log("closing connection...")
+        sub.clientClose()
+      })
+    } catch(error) {
+      console.error(error)
+      ws.close(1000, 'Client auth error.')
+    }
+  })
+
+})
+
+router.get('/webrtc-addresses', (req, res) => {
+  res.send(Object.keys(webrtc.activeAddresses))
+})
+
+router.post('/wr-reg-ref/:accountAddress', async (req, res) => {
+  const {accountAddress} = req.params
+  const {attestUrl, referralUrl} = req.body
+
+  const result = await webrtc.registerReferral(accountAddress, attestUrl, referralUrl)
+  res.send(result)
+})
+
+
+router.post('/webrtc-user-info', async (req, res) => {
+  const { ipfsHash } = req.body
+  const result = await webrtc.submitUserInfo(ipfsHash)
+  res.send(result)
+})
+
+router.get('/webrtc-user-info/:accountAddress', async (req, res) => {
+  const {accountAddress} = req.params
+
+  try {
+    const info = await webrtc.getUserInfo(accountAddress)
+    if (info) {
+      res.send(info)
+    } else {
+      res.status(404).send({})
+    }
+  } catch (error) {
+    console.log("Error getting user info:", error)
+    res.status(500).send(error)
+  }
+})
+
+
+
 router.ws('/wallet-messages/:walletToken/:readId', (ws, req) => {
   const { walletToken, readId } = req.params
 
@@ -281,7 +329,7 @@ router.ws('/wallet-messages/:walletToken/:readId', (ws, req) => {
 router.post('/submit-marketplace-onbehalf', async (req, res) => {
   const { cmd, params } = req.body
 
-  const result = hot.submitMarketplace(cmd, params)
+  const result = await hot.submitMarketplace(cmd, params)
   res.send(result)
 })
 
