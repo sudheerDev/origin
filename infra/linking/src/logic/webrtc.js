@@ -137,6 +137,22 @@ export default class Webrtc {
 
   async getUserInfo(ethAddress) {
     const userInfo = await db.UserInfo.findOne({ where: {ethAddress } })
+    if (userInfo && userInfo.info.attests) {
+      const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
+      const attests = userInfo.info.attests
+      for (const attest of attests.slice()) {
+        attest.verified = false
+        for(const attested of attestedSites) {
+          if (attested.accountUrl == attest.accountUrl 
+            && attested.site == attest.site 
+            && attested.account == attest.account)
+          {
+            attest.verified = true
+          }
+        }
+      }
+      userInfo.info.attests = attests.filter(a => a.verified)
+    }
     if (userInfo) {
       return userInfo.info
     }
@@ -144,7 +160,7 @@ export default class Webrtc {
 
   async getAllAttests(ethAddress) {
     // TODO: this might need to be secured
-    const attestedSites = await db.AttestedSite.findAll({where:{ethAddress}})
+    const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
     const result = []
 
     for (const attestedSite of attestedSites) {
@@ -154,7 +170,7 @@ export default class Webrtc {
 
       const links = inboundLinks.map(l => l.sanitizedUrl)
 
-      result.push({site, account, url:accountUrl, links})
+      result.push({site, account, accountUrl, links})
     }
 
     return result
@@ -182,7 +198,7 @@ export default class Webrtc {
           attested = await db.AttestedSite.create({ethAddress, site, account, accountUrl, verified:true})
         }
         await db.InboundAttest.upsert({attestedSiteId:attested.id, ethAddress, url:referralUrl, verified:true, sanitizedUrl})
-        return true
+        return {site, account, accountUrl, links:[sanitizedUrl]}
       }
     }
   }

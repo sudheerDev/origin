@@ -3,8 +3,10 @@ import cheerio from 'cheerio'
 import safeEval from 'safe-eval'
 
 const YOUTUBE_SITE = "youtube"
+const TWITTER_SITE = "twitter"
 
 const YOUTUBE_DOMAINS = ['youtube.com', 'youtu.be']
+const TWITTER_DOMAINS = ['twitter.com', 'twttr.net', 'twttr.com']
 
 function matchDomains(host, domains) {
   const ihost = host.toLowerCase()
@@ -26,6 +28,10 @@ function findReferralSite(referralUrl) {
     // Ok we're a youtube url
     return YOUTUBE_SITE
   }
+  else if (matchDomains(url.host, TWITTER_DOMAINS))
+  {
+    return TWITTER_SITE
+  }
 }
 
 function slashEscaped(string) {
@@ -44,13 +50,15 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
   const site = findReferralSite(referralUrl)
   console.log("found site:", site)
 
+  const rUrl = new URL(referralUrl)
+  if (!rUrl.pathname && !rUrl.search) {
+    // we are probably blocked by crossdomain policy
+    // and have only a host
+    return {}
+  }
+
+
   if (site == YOUTUBE_SITE) {
-    const rUrl = new URL(referralUrl)
-    if (!rUrl.pathname) {
-      // we are probably blocked by crossdomain policy
-      // and have only a host
-      return {}
-    }
     const response = await fetch(referralUrl)
     console.log("fetching referralUrl:", referralUrl)
 
@@ -86,6 +94,46 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       }
 
     }
-    return {}
   }
+  else if (site == TWITTER_SITE) {
+    const response = await fetch(referralUrl)
+    console.log("fetching referralUrl:", referralUrl)
+
+    if (response.ok) {
+      const $ = cheerio.load(await response.text())
+      const description = $('meta[property="og:description"]').attr('content')
+      const twitUrlString = $('meta[property="og:url"]').attr('content')
+
+      console.log("twit description and url:", description, twitUrlString)
+      const twitUrl = new URL(twitUrlString)
+      const splitPaths = twitUrl.pathname.split("/")
+
+      if (!twitUrl.hostname.startsWith("twitter.com") || splitPaths.length != 4 ||  splitPaths[2] != "status")
+      {
+        console.log("Not a valid twit")
+        return {}
+      }
+      const account = splitPaths[1]
+      const accountUrl = `https://twitter.com/${account}`
+      const sanitizedUrl = `${accountUrl}/status/${splitPaths[3]}`
+      const result = {site, account, accountUrl, sanitizedUrl}
+      if (description.includes(attestUrl.replace(/&/g, '&amp;')))
+      {
+        return result
+      } else {
+        const shortUrlMatches = description.match(/https:\/\/t.co\/[a-z0-9]+/i)
+        if (shortUrlMatches)
+        {
+          for (const match of shortUrlMatches) {
+            const realUrl = $(`a[href="${match}"]`).attr('data-expanded-url')
+            if (realUrl == attestUrl) {
+              return result
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {}
 }
