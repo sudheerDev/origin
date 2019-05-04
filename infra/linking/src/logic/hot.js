@@ -5,8 +5,8 @@ import ethUtil from 'ethereumjs-util'
 const HOT_WALLET_PK = process.env.HOT_WALLET_PK
 
 const ALLOWED_CALLS = {
-  acceptOfferOnBehalf: { feeIndex: 3, minFee: '200000000000000' },
-  verifiedOnBehalfFinalize: { feeIndex: 3, minFee: '200000000000000' }
+  acceptOfferOnBehalf: { feeIndex: 3, minFee: '50000000000000' },
+  verifiedOnBehalfFinalize: { feeIndex: 3, minFee: '50000000000000' }
 }
 
 class Hot {

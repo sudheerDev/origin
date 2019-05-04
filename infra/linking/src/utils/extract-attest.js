@@ -1,12 +1,16 @@
 import fetch from 'cross-fetch'
+import { fetch as fetchH2 } from 'fetch-h2'
 import cheerio from 'cheerio'
 import safeEval from 'safe-eval'
+import querystring from 'querystring'
 
 const YOUTUBE_SITE = "youtube"
 const TWITTER_SITE = "twitter"
+const LINKEDIN_SITE = "linkedin"
 
 const YOUTUBE_DOMAINS = ['youtube.com', 'youtu.be']
 const TWITTER_DOMAINS = ['twitter.com', 'twttr.net', 'twttr.com']
+const LINKEDIN_DOMAINS = ["linkedin.com"]
 
 function matchDomains(host, domains) {
   const ihost = host.toLowerCase()
@@ -31,6 +35,10 @@ function findReferralSite(referralUrl) {
   else if (matchDomains(url.host, TWITTER_DOMAINS))
   {
     return TWITTER_SITE
+  }
+  else if (matchDomains(url.host, LINKEDIN_DOMAINS))
+  {
+    return LINKEDIN_SITE
   }
 }
 
@@ -108,9 +116,9 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       const twitUrl = new URL(twitUrlString)
       const splitPaths = twitUrl.pathname.split("/")
 
-      if (!twitUrl.hostname.startsWith("twitter.com") || splitPaths.length != 4 ||  splitPaths[2] != "status")
+      if (!twitUrl.hostname.endsWith("twitter.com") || splitPaths.length != 4 ||  splitPaths[2] != "status")
       {
-        console.log("Not a valid twit")
+        console.log("Not a valid twit:", twitUrl)
         return {}
       }
       const account = splitPaths[1]
@@ -127,6 +135,46 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
           for (const match of shortUrlMatches) {
             const realUrl = $(`a[href="${match}"]`).attr('data-expanded-url')
             if (realUrl == attestUrl) {
+              return result
+            }
+          }
+        }
+      }
+    }
+  } else if ( site == LINKEDIN_SITE ) {
+    const response = await fetchH2(referralUrl, 
+      {headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:66.0) Gecko/20100101 Firefox/66.0',
+        'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.7,zh;q=0.3',
+        'Upgrade-Insecure-Requests': '1'
+      }})
+    console.log("fetchH2 response", response)
+
+    if (response.ok) {
+      const $ = cheerio.load(await response.text())
+      const linkUrlString = $('meta[property="og:url"]').attr('content')
+
+      const linkUrl = new URL(linkUrlString)
+      const splitPaths = linkUrl.pathname.split("/")
+
+      if (!linkUrl.hostname.endsWith("linkedin.com") || splitPaths.length != 3 || splitPaths[1] != "in")
+      {
+        console.log("Not a valid linkedin profile:", linkUrl)
+        return {}
+      }
+      const account = splitPaths[2]
+      const accountUrl = linkUrl
+      const sanitizedUrl = linkUrl
+      const result = {site, account, accountUrl, sanitizedUrl}
+      for (const link of $('a.topcard-links--flex').get())
+      {
+        const hrefString = $(link).attr('href')
+        if (hrefString){
+          const redirectUrl = new URL(hrefString)
+          if(redirectUrl.path = '/redis/redirect' && redirectUrl.search){
+            const query = querystring.parse(redirectUrl.substring(1))
+            if (query.url == attestUrl) {
               return result
             }
           }

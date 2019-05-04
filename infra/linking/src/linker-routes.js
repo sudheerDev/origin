@@ -27,7 +27,7 @@ const clientTokenHandler = (res, clientToken) => {
 
 const linker = new Linker()
 const hot = new Hot()
-const webrtc = new Webrtc()
+const webrtc = new Webrtc(linker)
 
 router.post('/generate-code', async (req, res) => {
   const _clientToken = getClientToken(req)
@@ -240,10 +240,10 @@ router.ws('/webrtc-relay/:ethAddress', (ws, req) => {
 
   ws.on('message', msg => {
     console.log("we got a message for:", msg)
-    const { signature, message, rules, timestamp } = JSON.parse(msg)
+    const { signature, message, rules, timestamp, walletToken } = JSON.parse(msg)
 
     try {
-      const sub = webrtc.subscribe(ethAddress, signature, message, rules, timestamp)
+      const sub = webrtc.subscribe(ethAddress, signature, message, rules, timestamp, walletToken)
 
       sub.onServerMessage(msg => {
         ws.send(msg)
