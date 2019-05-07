@@ -260,5 +260,6 @@ services:
     command:
       >
       /bin/bash -c "wait-for.sh -t 0 -q postgres:5432 --
+      npm run build --prefix packages/origin-js && 
       npm run migrate --prefix infra/linking &&
       npm run start --prefix infra/linking"
