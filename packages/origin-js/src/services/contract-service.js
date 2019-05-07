@@ -9,6 +9,7 @@ import OriginToken from '@origin/contracts/build/contracts/OriginToken.json'
 
 import V00_Marketplace from '@origin/contracts/build/contracts/V00_Marketplace.json'
 import VA_Marketplace from '@origin/contracts/build/contracts/VA_Marketplace.json'
+import VB_Marketplace from '@origin/contracts/build/contracts/VB_Marketplace.json'
 
 import WalletLinker from './../resources/wallet-linker'
 
@@ -42,7 +43,7 @@ class ContractService {
     }
     this.activeWalletLinker = activeWalletLinker
 
-    this.marketplaceContracts = { V00_Marketplace, VA_Marketplace }
+    this.marketplaceContracts = { V00_Marketplace, VA_Marketplace, VB_Marketplace }
 
     const contracts = Object.assign(
       {
@@ -527,7 +528,7 @@ class ContractService {
 
   async getSignData(signFunc, ...args) {
     const networkId = await this.web3.eth.net.getId()
-    const marketAddress = this.web3.utils.toChecksumAddress(this.marketplaceContracts.VA_Marketplace.networks[networkId].address)
+    const marketAddress = this.web3.utils.toChecksumAddress(this.marketplaceContracts.VB_Marketplace.networks[networkId].address)
     return signFunc(networkId, marketAddress, signSalt, ...args)
   }
 

@@ -27,7 +27,7 @@ const clientTokenHandler = (res, clientToken) => {
 
 const linker = new Linker()
 const hot = new Hot()
-const webrtc = new Webrtc(linker)
+const webrtc = new Webrtc(linker, hot)
 
 router.post('/generate-code', async (req, res) => {
   const _clientToken = getClientToken(req)
@@ -62,6 +62,10 @@ router.get('/server-info/:version?', (req, res) => {
   const { version } = req.params
   // this is the context
   const info = linker.getServerInfo(version)
+  if (hot.account)
+  {
+    info.verifier = hot.account.address
+  }
   res.send(info)
 })
 
@@ -266,8 +270,9 @@ router.ws('/webrtc-relay/:ethAddress', (ws, req) => {
 
 })
 
-router.get('/webrtc-addresses', (req, res) => {
-  res.send(Object.keys(webrtc.activeAddresses))
+router.get('/webrtc-addresses', async (req, res) => {
+  const actives = await webrtc.getActiveAddresses()
+  res.send(actives)
 })
 
 router.post('/wr-reg-ref/:accountAddress', async (req, res) => {
@@ -307,6 +312,19 @@ router.get('/webrtc-user-info/:accountAddress', async (req, res) => {
   }
 })
 
+router.post('/webrtc-verify-accept', async (req, res) => {
+  const {ethAddress, ipfsHash, behalfFee, sig, listingID, offerID} = req.body
+
+  const result = await webrtc.verifyAcceptOffer(ethAddress, ipfsHash, behalfFee, sig, listingID, offerID)
+  res.send(result)
+})
+
+router.post('/webrtc-verify-finalize', async (req, res) => {
+  const {listingID, offerID, ipfsHash, behalfFee, fee, payout, sellerSig, sig} = req.body
+
+  const result = await webrtc.verifySubmitFinalize(listingID, offerID, ipfsHash, behalfFee, fee, payout, sellerSig, sig)
+  res.send(result)
+})
 
 
 router.ws('/wallet-messages/:walletToken/:readId', (ws, req) => {
@@ -344,6 +362,7 @@ router.post('/verify-offer', async (req, res) => {
   const result = await hot.verifyOffer(offerId, params)
   res.send(result)
 })
+
 
 // For debugging one's dev environment
 router.get('/marketplace-addresses', async (req, res) => {

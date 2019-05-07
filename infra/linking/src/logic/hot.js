@@ -4,10 +4,14 @@ import { TypedDataUtils, concatSig } from 'eth-sig-util'
 import ethUtil from 'ethereumjs-util'
 const HOT_WALLET_PK = process.env.HOT_WALLET_PK
 
+
+const MIN_FEE = '50000000000000'
+
 const ALLOWED_CALLS = {
-  acceptOfferOnBehalf: { feeIndex: 3, minFee: '50000000000000' },
-  verifiedOnBehalfFinalize: { feeIndex: 3, minFee: '50000000000000' }
+  acceptOfferOnBehalf: { feeIndex: 3, minFee: MIN_FEE },
+  verifiedOnBehalfFinalize: { feeIndex: 3, minFee: MIN_FEE }
 }
+
 
 class Hot {
   constructor() {
@@ -15,6 +19,15 @@ class Hot {
     this.marketplace_adapter = origin.marketplace.resolver.adapters['A']
     this.account = web3.eth.accounts.wallet.add(HOT_WALLET_PK)
     origin.contractService.transactionSigner = this.account.signTransaction
+    this.initContract()
+  }
+
+  async initContract() {
+    this.contract = await origin.contractService.deployed(origin.contractService.marketplaceContracts.VB_Marketplace)
+  }
+
+  checkMinFee(fee) {
+    return web3.utils.toBN(fee).gte(web3.utils.toBN(MIN_FEE))
   }
 
   isAllowedCall(cmd, params) {
@@ -28,6 +41,25 @@ class Hot {
       }
     }
   }
+  
+  async _submitMarketplace(cmd, params) {
+    const from = this.account.address
+    console.log('Submitting...', cmd, params, from)
+    console.log('Pre market balance...', await web3.eth.getBalance(from))
+    const options = { from }
+    const method = this.contract.methods[cmd](...params)
+    options.gas = (options.gas || (await method.estimateGas(options)))
+    const transactionReceipt = await new Promise((resolve, reject) => {
+      console.log("calling method...")
+      method.send(options).then(receipt => {
+        console.log("confirmationReceipt", receipt)
+        resolve(receipt)
+      })
+    })
+    const ret = { transactionReceipt }
+    console.log('Post market balance...', await web3.eth.getBalance(from))
+    return ret
+  }
 
   async submitMarketplace(cmd, params) {
     if (!this.isAllowedCall(cmd, params)) {
@@ -35,12 +67,40 @@ class Hot {
         `Error cmd:${cmd} params: ${params} is not an allowed call`
       )
     }
-    const from = this.account.address
-    console.log('Submitting...', cmd, params, from)
-    console.log('Pre market balance...', await web3.eth.getBalance(from))
-    const ret = await this.marketplace_adapter.call(cmd, params, { from: from })
-    console.log('Post market balance...', await web3.eth.getBalance(from))
-    return ret
+    return this._submitMarketplace(cmd, params)
+  }
+
+
+  async recoverFinalize(listingID, offerID, ipfsBytes, payout, verifyFee, sig) {
+     const data = await origin.contractService.getSignFinalizeData(
+          listingID,
+          offerID,
+          ipfsBytes,
+          payout,
+          verifyFee
+        )
+    if (typeof sig === 'string') {
+      sig = origin.contractService.breakdownSig(sig)
+    }
+    const publicKey = ethUtil.ecrecovered( TypedDataUtils.sign(data), sig.v, sig.r, sig.s)
+    return web3.utils.toChecksumAddress(ethUtil.bufferToHex(ethUtil.pubToAddress(publicKey)))
+  }
+
+  async signFinalize(listingID, offerID, ipfsBytes, payout, verifyFee) {
+    const data = await origin.contractService.getSignFinalizeData(
+      listingID,
+      offerID,
+      ipfsBytes,
+      payout,
+      verifyFee
+    )
+    const sig = ethUtil.ecsign(
+      TypedDataUtils.sign(data),
+      ethUtil.toBuffer(HOT_WALLET_PK)
+    )
+    sig.r = ethUtil.bufferToHex(sig.r)
+    sig.s = ethUtil.bufferToHex(sig.s)
+    return sig
   }
 
   async verifyOffer(offerId, params) {
@@ -105,16 +165,12 @@ class Hot {
           .sub(web3.utils.toBN(rawOffer.refund))
           .toString()
         const verifyFee = '100'
-        const data = await origin.contractService.getSignFinalizeData(
+        const sig = await this.signFinalize(
           listingID,
           offerID,
           ipfsBytes,
           payout,
           verifyFee
-        )
-        const sig = ethUtil.ecsign(
-          TypedDataUtils.sign(data),
-          ethUtil.toBuffer(HOT_WALLET_PK)
         )
         const signature = ethUtil.bufferToHex(concatSig(sig.v, sig.r, sig.s))
         console.log(
