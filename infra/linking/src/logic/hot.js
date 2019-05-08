@@ -80,7 +80,7 @@ class Hot {
     profile.raw_ipfs_hash = web3.utils.sha3(stringify(profile))
     const data = await origin.contractService.getSignProfileData(profile)
     const sig = origin.contractService.breakdownSig(_profile.signature)
-    const publicKey = ethUtil.ecrecovered(TypedDataUtils.sign(data), sig.v, sig.r, sig.s)
+    const publicKey = ethUtil.ecrecover(TypedDataUtils.sign(data), sig.v, sig.r, sig.s)
     return web3.utils.toChecksumAddress(ethUtil.bufferToHex(ethUtil.pubToAddress(publicKey))) == profile.address
   }
 
@@ -96,7 +96,7 @@ class Hot {
     if (typeof sig === 'string') {
       sig = origin.contractService.breakdownSig(sig)
     }
-    const publicKey = ethUtil.ecrecovered( TypedDataUtils.sign(data), sig.v, sig.r, sig.s)
+    const publicKey = ethUtil.ecrecover( TypedDataUtils.sign(data), sig.v, sig.r, sig.s)
     return web3.utils.toChecksumAddress(ethUtil.bufferToHex(ethUtil.pubToAddress(publicKey)))
   }
 

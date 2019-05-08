@@ -367,7 +367,7 @@ export default class Webrtc {
   async submitUserInfo(ipfsHash) {
     const info = await origin.ipfsService.loadObjFromFile(ipfsHash)
     // we should verify the signature for this
-    if (this.hot.verifyProfile(info))
+    if (await this.hot.verifyProfile(info))
     {
       console.log("submitting ipfsHash:", ipfsHash)
       await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info})
