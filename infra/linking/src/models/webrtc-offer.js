@@ -15,7 +15,6 @@ module.exports = (sequelize, DataTypes) => {
       active: DataTypes.BOOLEAN,
       dismissed: DataTypes.BOOLEAN,
       rejected: DataTypes.BOOLEAN,
-      started: DataTypes.BOOLEAN,
       lastNotify:DataTypes.DATE
     },
     {

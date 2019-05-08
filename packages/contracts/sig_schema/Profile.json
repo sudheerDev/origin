@@ -1,0 +1,7 @@
+[
+  { "name" : "address", "type" : "address" },
+  { "name" : "icon", "type" : "string" },
+  { "name" : "name", "type" : "string" },
+  { "name" : "description", "type" : "string" },
+  { "name" : "raw_ipfs_hash", "type" : "bytes32" }
+]

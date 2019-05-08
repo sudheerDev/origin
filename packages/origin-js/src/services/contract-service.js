@@ -17,7 +17,7 @@ import BigNumber from 'bignumber.js'
 import bs58 from 'bs58'
 import Web3 from 'web3'
 import { groupBy, mapValues } from './../utils/arrayFunctions'
-import { listingToSignData, acceptOfferToSignData, finalizeToSignData } from '@origin/contracts/sig_schema'
+import { listingToSignData, acceptOfferToSignData, finalizeToSignData, profileSignData } from '@origin/contracts/sig_schema'
 
 const emptyAddress = '0x0000000000000000000000000000000000000000'
 const signSalt = '0x0000000000000000000000000000000000000000000000000000000000000666'
@@ -538,6 +538,10 @@ class ContractService {
 
   async getSignFinalizeData(listingID, offerID, ipfsBytes, payout, verifyFee) {
     return await this.getSignData(finalizeToSignData, listingID, offerID, ipfsBytes, payout, verifyFee)
+  }
+
+  async getSignProfileData(profile) {
+    return await this.getSignData(profileSignData, profile)
   }
 
   async signListing(listing) {

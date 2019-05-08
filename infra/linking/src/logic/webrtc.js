@@ -367,14 +367,24 @@ export default class Webrtc {
   async submitUserInfo(ipfsHash) {
     const info = await origin.ipfsService.loadObjFromFile(ipfsHash)
     // we should verify the signature for this
-    console.log("submitting ipfsHash:", ipfsHash)
-    await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info})
-    return true
+    if (this.hot.verifyProfile(info))
+    {
+      console.log("submitting ipfsHash:", ipfsHash)
+      await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info})
+      this.redis.publish(CHANNEL_ALL, JSON.stringify({from:info.address, updated:1}))
+      return true
+    }
+    return false
   }
 
   async getUserInfo(ethAddress) {
     let info = {}
     const userInfo = await db.UserInfo.findOne({ where: {ethAddress } })
+    if (userInfo)
+    {
+      info = userInfo.info
+    }
+
     if (userInfo && userInfo.info.attests) {
       const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
       const attests = userInfo.info.attests
@@ -389,7 +399,6 @@ export default class Webrtc {
           }
         }
       }
-      info = userInfo.info
       info.attests = attests.filter(a => a.verified)
     }
     info.active = ethAddress in this.activeAddresses

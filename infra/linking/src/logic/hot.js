@@ -2,6 +2,7 @@ import origin, { web3 } from './../services/origin'
 import fetch from 'cross-fetch'
 import { TypedDataUtils, concatSig } from 'eth-sig-util'
 import ethUtil from 'ethereumjs-util'
+import stringify from 'json-stable-stringify'
 const HOT_WALLET_PK = process.env.HOT_WALLET_PK
 
 
@@ -68,6 +69,19 @@ class Hot {
       )
     }
     return this._submitMarketplace(cmd, params)
+  }
+
+  async verifyProfile(_profile) {
+    const profile = Object.assign({}, _profile)
+    delete profile.active
+    delete profile.raw_ipfs_hash
+    delete profile.signature
+
+    profile.raw_ipfs_hash = web3.utils.sha3(stringify(profile))
+    const data = await origin.contractService.getSignProfileData(profile)
+    const sig = origin.contractService.breakdownSig(_profile.signature)
+    const publicKey = ethUtil.ecrecovered(TypedDataUtils.sign(data), sig.v, sig.r, sig.s)
+    return web3.utils.toChecksumAddress(ethUtil.bufferToHex(ethUtil.pubToAddress(publicKey))) == profile.address
   }
 
 

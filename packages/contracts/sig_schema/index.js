@@ -2,6 +2,7 @@ const Money = require('./Money.json')
 const Listing = require('./Listing.json')
 const AcceptOffer = require('./AcceptOffer.json')
 const Finalize = require('./Finalize.json')
+const Profile = require('./Profile.json')
 const EIP712Domain = require('./EIP712Domain.json')
 
 const name = "Origin Protocol"
@@ -61,5 +62,19 @@ function finalizeToSignData(netId, marketAddress, salt, listingID, offerID, ipfs
   }
 }
 
+function profileSignData(netId, marketAddress, salt, profile) {
+  const domain = _toDomain(netId, marketAddress, salt)
+  const types = {
+    EIP712Domain,
+    Profile
+  }
+  return {
+    types,
+    domain,
+    primaryType:"Profile",
+    message: profile
+  }
+}
 
-module.exports = { listingToSignData, acceptOfferToSignData, finalizeToSignData }
+
+module.exports = { listingToSignData, acceptOfferToSignData, finalizeToSignData, profileSignData }
