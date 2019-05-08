@@ -373,6 +373,7 @@ export default class Webrtc {
   }
 
   async getUserInfo(ethAddress) {
+    let info = {}
     const userInfo = await db.UserInfo.findOne({ where: {ethAddress } })
     if (userInfo && userInfo.info.attests) {
       const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
@@ -388,11 +389,11 @@ export default class Webrtc {
           }
         }
       }
-      userInfo.info.attests = attests.filter(a => a.verified)
+      info = userInfo.info
+      info.attests = attests.filter(a => a.verified)
     }
-    if (userInfo) {
-      return userInfo.info
-    }
+    info.active = ethAddress in this.activeAddresses
+    return info
   }
 
   async getAllAttests(ethAddress) {
