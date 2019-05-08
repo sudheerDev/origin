@@ -25,9 +25,14 @@ module.exports = {
           type: Sequelize.STRING(16),
         },
         dismissed: {
-          allowNull: false,
+          allownull: false,
           type: Sequelize.BOOLEAN,
-          defaultValue: false
+          defaultvalue: false
+        },
+        rejected: {
+          allownull: false,
+          type: Sequelize.BOOLEAN,
+          defaultvalue: false
         },
         active: {
           allowNull: false,
