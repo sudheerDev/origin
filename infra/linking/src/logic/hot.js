@@ -19,7 +19,7 @@ class Hot {
     // grab the version that allows for behalf submits
     this.marketplace_adapter = origin.marketplace.resolver.adapters['A']
     this.account = web3.eth.accounts.wallet.add(HOT_WALLET_PK)
-    origin.contractService.transactionSigner = this.account.signTransaction
+    this.transactionSigner = this.account.signTransaction
     this.initContract()
   }
 
@@ -51,11 +51,24 @@ class Hot {
     const method = this.contract.methods[cmd](...params)
     options.gas = (options.gas || (await method.estimateGas(options)))
     const transactionReceipt = await new Promise((resolve, reject) => {
-      console.log("calling method...")
-      method.send(options).then(receipt => {
-        console.log("confirmationReceipt", receipt)
-        resolve(receipt)
-      })
+      if (this.transactionSigner)
+      {
+        //This is needed for infura nodes
+        options.data = method.encodeABI()
+        options.to = contract.options.address
+        this.transactionSigner(opts).then(sig => {
+          this.web3.eth.sendSignedTransaction(sig.rawTransaction).then(receipt => {
+            console.log("confirmationReceipt", receipt)
+            resolve(receipt)
+          })
+        })
+      } else {
+        console.log("calling method...")
+        method.send(options).then(receipt => {
+          console.log("confirmationReceipt", receipt)
+          resolve(receipt)
+        })
+      }
     })
     const ret = { transactionReceipt }
     console.log('Post market balance...', await web3.eth.getBalance(from))
