@@ -123,11 +123,14 @@ class WebrtcSub {
   }
 
   setActivePeer(ethAddress) {
-    for (const peer of this.peers) {
-      //leave all other conversations
-      if(peer != ethAddress)
-      {
-        this.removePeer(peer)
+    if (this.peers)
+    {
+      for (const peer of this.peers) {
+        //leave all other conversations
+        if(peer != ethAddress)
+        {
+          this.removePeer(peer)
+        }
       }
     }
     this.peers = [ethAddress]
