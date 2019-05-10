@@ -55,9 +55,9 @@ class Hot {
       {
         //This is needed for infura nodes
         options.data = method.encodeABI()
-        options.to = contract.options.address
-        this.transactionSigner(opts).then(sig => {
-          this.web3.eth.sendSignedTransaction(sig.rawTransaction).then(receipt => {
+        options.to = this.contract.options.address
+        this.transactionSigner(options).then(sig => {
+          web3.eth.sendSignedTransaction(sig.rawTransaction).then(receipt => {
             console.log("confirmationReceipt", receipt)
             resolve(receipt)
           })
