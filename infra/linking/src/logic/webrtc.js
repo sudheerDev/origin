@@ -581,7 +581,7 @@ export default class Webrtc {
       }
     }
 
-    contractOffer.totalValue = web3.utils.toBN(contractOffer.value).sub(web3.utils.toBN(contractOffer.refund))
+    contractOffer.totalValue = web3.utils.toBN(contractOffer.value).sub(web3.utils.toBN(contractOffer.refund)).toString()
 
     const offer = {
       from : contractOffer.buyer,
