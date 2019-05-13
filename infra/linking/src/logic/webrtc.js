@@ -140,6 +140,7 @@ class WebrtcSub {
     e.amount = offer.amount
     e.amountType = offer.amountType
     e.totalValue = offer.contractOffer.totalValue
+    e.status = offer.contractOffer.status
     if (offer.initInfo)
     {
       e.terms = offer.initInfo.offerTerms
