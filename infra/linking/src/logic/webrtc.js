@@ -578,6 +578,7 @@ export default class Webrtc {
         //payout too large
         return
       }
+      voucher.escrowedAmount = offer.contractOffer.totalValue
       if (offer.lastVoucher) {
         if (web3.utils.toBN(offer.lastVoucher.payout).gte(BNpayout))
         {
