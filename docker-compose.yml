@@ -5,8 +5,8 @@ volumes:
   ipfs:
 
 services:
-  postgres:
-    container_name: postgres
+  postgres-linker:
+    container_name: postgres-linker
     restart: always
     image: postgres:10.0
     environment:
@@ -16,28 +16,17 @@ services:
     ports:
       - "5432:5432"
 
-  elasticsearch:
-    container_name: elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.1
-    ports:
-      - "9200:9200"
-    environment:
-      network.bind_host: 0
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
-    logging:
-      driver: none
+  redis-master-linker:
+     container_name: redis-master-linker
+     image: 'bitnami/redis:latest'
+     environment:
+       - ALLOW_EMPTY_PASSWORD=yes
+     ports:
+       - '6379:6379'
 
-  redis-master:
-    container_name: redis-master
-    image: 'bitnami/redis:latest'
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
-    ports:
-      - '6379:6379'
-
-  services:
-    container_name: services
-    image: origin
+  services-linker:
+    container_name: services-linker
+    image: origin-linker
     build:
       context: .
       dockerfile: Dockerfile
@@ -93,24 +82,9 @@ services:
       - DEPLOY_CONTRACTS=true
     command: npm run start --prefix packages/services
 
-  messaging:
-    container_name: messaging
-    image: origin
-    volumes: *volumes
-    environment:
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
-      - REDIS_URL=redis://redis-master:6379
-    depends_on:
-      - postgres
-      - redis-master
-    ports:
-      - "9012:9012"
-      - "6647:6647"
-    command: npm run start --prefix infra/messaging
-
-  ipfs-proxy:
-    container_name: ipfs-proxy
-    image: origin
+  ipfs-proxy-linker:
+    container_name: ipfs-proxy-linker
+    image: origin-linker
     volumes: *volumes
     ports:
       - "9999:9999"
@@ -119,144 +93,22 @@ services:
       - IPFS_GATEWAY_URL=http://services:8080
     command: npm run start --prefix infra/ipfs-proxy
 
-  event-listener:
-    container_name: event-listener
-    image: origin
-    volumes: *volumes
-    environment:
-      - ARBITRATOR_ACCOUNT=0x821aEa9a577a9b44299B9c15c88cf3087F3b5544
-      - AFFILIATE_ACCOUNT=0x0d1d4e623D10F9FBA5Db95830F7d3839406C6AF2
-      - ATTESTATION_ACCOUNT=0x99C03fBb0C995ff1160133A8bd210D0E77bCD101
-      - BLOCK_EPOCH=
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
-      - DISCORD_WEBHOOK=
-      - ELASTICSEARCH=true
-      - ELASTICSEARCH_HOST=elasticsearch:9200
-      - EMAIL_WEBHOOK=
-      - ENVKEY=
-      - GCLOUD_PUBSUB_TOPIC=
-      - GCLOUD_PROJECT_ID=
-      - INDEX_MARKETPLACE=true
-      - INDEX_IDENTITY=true
-      - INDEX_GROWTH=true
-      - IPFS_URL=http://ipfs-proxy:9999
-      - TRAIL_BEHIND_BLOCKS=
-      - WEB3_URL=http://services:8545
-      - WEBHOOK=
-    depends_on:
-      - postgres
-      - elasticsearch
-      - services
-    command:
-      >
-      /bin/bash -c "wait-for.sh -t 0 -q elasticsearch:9200 --
-      wait-for.sh -t 0 -q services:8080 --
-      npm run migrate --prefix infra/discovery &&
-      npm run migrate --prefix infra/growth &&
-      npm run migrate --prefix infra/identity &&
-      npm run start:listener --prefix infra/discovery"
-
-  discovery:
-    container_name: discovery
-    image: origin
-    volumes: *volumes
-    environment:
-      # MetaMask account 4 (default local blockchain) aka accounts[3]
-      - ARBITRATOR_ACCOUNT=0x821aEa9a577a9b44299B9c15c88cf3087F3b5544
-      # MetaMask account 5 (default local blockchain) aka accounts[4]
-      - AFFILIATE_ACCOUNT=0x0d1d4e623D10F9FBA5Db95830F7d3839406C6AF2
-      # MetaMask account 5 (default local blockchain) aka accounts[4]
-      - ATTESTATION_ACCOUNT=0x99C03fBb0C995ff1160133A8bd210D0E77bCD101
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
-      - ELASTICSEARCH_HOST=elasticsearch:9200
-      - IPFS_URL=http://ipfs-proxy:9999
-      - NETWORK_ID=999
-      - WEB3_URL=http://services:8545
-      - ENVKEY=
-    depends_on:
-      - postgres
-      - elasticsearch
-    ports:
-      - "4000:4000"
-    command:
-      >
-      /bin/bash -c "wait-for.sh -t 0 -q elasticsearch:9200 --
-      node infra/discovery/devops/es-cli.js createIndex listings &&
-      npm run start:discovery --prefix infra/discovery"
-
-  notifications:
-    container_name: notifications
-    image: origin
-    volumes: *volumes
-    depends_on:
-      - postgres
-    environment:
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
-    ports:
-      - "3456:3456"
-    command:
-      >
-      /bin/bash -c "wait-for.sh -t 0 -q postgres:5432 --
-      npm run migrate --prefix infra/notifications &&
-      npm run start --prefix infra/notifications"
-
-  growth:
-    container_name: growth
-    image: origin
-    volumes: *volumes
-    environment:
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
-      - ENVKEY=
-    depends_on:
-      - postgres
-    ports:
-      - "4001:4001"
-    command: npm run start --prefix infra/growth
-
-  bridge:
-    container_name: bridge
-    image: origin
-    volumes: *volumes
-    environment:
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
-      - FACEBOOK_CLIENT_ID=
-      - FACEBOOK_CLIENT_SECRET=
-      # Sendgrid settings for email attestations
-      # sendgrid.com
-      - SENDGRID_FROM_EMAIL=
-      - SENDGRID_API_KEY=
-      # Twilio verify API key for phone attestations
-      # https://www.twilio.com/console/verify/applications
-      - TWILIO_VERIFY_API_KEY
-      - TWITTER_CONSUMER_KEY=
-      - TWITTER_CONSUMER_SECRET=
-      - ENVKEY=
-    depends_on:
-      - postgres
-    ports:
-      - "5000:5000"
-    command:
-      >
-      /bin/bash -c "wait-for.sh -t 0 -q postgres:5432 --
-      npm run migrate --prefix infra/bridge &&
-      npm run start --prefix infra/bridge"
-
-  linking:
-    container_name: linking
+  linking-linker:
+    container_name: linking-linker
     image: origin
     volumes: *volumes
     environment:
       - HOT_WALLET_PK=C87509A1C067BBDE78BEB793E6FA76530B6382A4C0241E5E4A9EC0A0F44DC0D3
       - ATTESTATION_ACCOUNT=0x99C03fBb0C995ff1160133A8bd210D0E77bCD101
       - DAPP_URL=http://localhost:3000
-      - DATABASE_URL=postgres://origin:origin@postgres/origin
+      - DATABASE_URL=postgres-linker://origin:origin@postgres/origin
       - DISCOVERY_SERVER_URL=http://localhost:4000
       - PROVIDER_URL=http://localhost:8545
       - REDIS_URL=redis://redis-master:6379
       - ENVKEY=
     depends_on:
-      - postgres
-      - redis-master
+      - postgres-linker
+      - redis-master-linker
     command:
       >
       /bin/bash -c "wait-for.sh -t 0 -q postgres:5432 --
