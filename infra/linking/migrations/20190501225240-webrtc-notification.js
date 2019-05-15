@@ -33,6 +33,9 @@ module.exports = {
           type: Sequelize.BOOLEAN,
           defaultValue: true
         },
+        device_type: {
+          type: Sequelize.STRING(32)
+        },
         last_online: {
           allowNull: false,
           type: Sequelize.DATE

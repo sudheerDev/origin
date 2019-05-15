@@ -275,6 +275,17 @@ router.get('/webrtc-addresses', async (req, res) => {
   res.send(actives)
 })
 
+router.get('/webrtc-offer/:listingID/:offerID', async (req, res) => {
+  const {listingID, offerID} = req.params
+  const offer = await webrtc.getOffer(listingID, offerID)
+
+  if (offer) {
+    res.send(offer.get({plain:true}))
+  } else {
+    res.send({})
+  }
+})
+
 router.post('/wr-reg-ref/:accountAddress', async (req, res) => {
   const {accountAddress} = req.params
   const {attestUrl, referralUrl} = req.body

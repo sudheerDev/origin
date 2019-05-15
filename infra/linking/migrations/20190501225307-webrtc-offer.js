@@ -25,14 +25,24 @@ module.exports = {
           type: Sequelize.STRING(16),
         },
         dismissed: {
-          allownull: false,
+          allowNull: false,
           type: Sequelize.BOOLEAN,
-          defaultvalue: false
+          defaultValue: false
         },
         rejected: {
           allownull: false,
           type: Sequelize.BOOLEAN,
-          defaultvalue: false
+          defaultValue: false
+        },
+        from_new_msg: {
+          allowNull: false,
+          type: Sequelize.BOOLEAN,
+          defaultValue: false
+        },
+        to_new_msg: {
+          allowNull: false,
+          type: Sequelize.BOOLEAN,
+          defaultValue: false
         },
         active: {
           allowNull: false,

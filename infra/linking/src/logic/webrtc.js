@@ -43,7 +43,6 @@ class WebrtcSub {
     this.walletToken = walletToken
     this.logic = logic
 
-
     this.redisSub.on("subscribe", (channel, count) => {
       if (channel == CHANNEL_ALL) {
         if (this.active) {
@@ -52,9 +51,10 @@ class WebrtcSub {
       }
     })
 
-    this.msgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers]
+    this.msgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss]
 
     this.setUserInfo()
+    this.getPendingOffers()
   }
 
   setActive() {
@@ -82,10 +82,16 @@ class WebrtcSub {
 
   async setUserInfo() {
     this.userInfo = await this.logic.getUserInfo(this.subscriberEthAddress)
+    // set active only after user info is gotten
+    this.setActive()
   }
 
   getName() {
     return (this.userInfo && this.userInfo.name) || this.subscriberEthAddress
+  }
+
+  getMinCost() {
+    return web3.utils.toWei((this.userInfo && this.userInfo.minCost) || '0.01')
   }
 
   publish(channel, data) {
@@ -94,7 +100,7 @@ class WebrtcSub {
 
   onServerMessage(handler) {
     this.redisSub.on('message', (channel, msg) => {
-      const {from, subscribe} = JSON.parse(msg)
+      const {from, subscribe, updated} = JSON.parse(msg)
       const { offer, accept } = subscribe || {}
       if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept)
       {
@@ -104,6 +110,9 @@ class WebrtcSub {
         } catch(error) {
           console.log(error)
         }
+      }
+      if(channel == CHANNEL_ALL && from == this.subscriberEthAddress && updated) {
+        this.setUserInfo()
       }
     })
     this.msgHandler = handler
@@ -162,16 +171,27 @@ class WebrtcSub {
           console.log("Offer is:", offer)
 
           // TODO: we need a price on this offer so need to load up profiles here as well
-          if (offer && offer.active && !offer.dismissed
-            && offer.from == this.subscriberEthAddress && (!offer.to || offer.to == ethAddress))
+          if (offer && offer.active && !offer.rejected
+            && offer.from == this.subscriberEthAddress && (!offer.to || offer.to == ethAddress) &&
+            (web3.utils.toBN(offer.contractOffer.totalValue).gte(this.getMinCost) || this.logic.isOfferAccepted(offer)))
           {
-            if (!offer.lastNotify || (new Date() - offer.lastNotify) > 1000 * 60* 60* 6) {
+            if (!offer.lastNotify || (offer.fromNewMsg || (new Date() - offer.lastNotify) > 1000 * 60* 60* 3)) {
               if (offer.lastVoucher) {
-                this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`)
+                this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {offer})
               } else {
-                this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`)
+                if (this.logic.isOfferAccepted(offer)) {
+                  this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is ready to start your conversation.`, {offer})
+                } else {
+                  this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {offer})
+                }
               }
               offer.lastNotify = new Date()
+              offer.fromNewMsg = false
+              offer.toNewMsg = true
+              offer.save()
+            } else {
+              offer.fromNewMsg = false
+              offer.toNewMsg = true
               offer.save()
             }
 
@@ -184,21 +204,23 @@ class WebrtcSub {
           const {
             listingID,
             offerID,
-            ipfsHash,
-            behalfFee,
-            signature
           } = subscribe.accept
           const offer = await this.logic.getOffer(listingID, offerID)
 
-          if (offer && offer.active && !offer.dismissed
+          if (offer && offer.active
             && (offer.to == this.subscriberEthAddress || !offer.to) && offer.from == ethAddress
-            && (this.logic.isOfferAccepted(offer) || signature))
+            && this.logic.isOfferAccepted(offer))
           {
             if (offer.lastVoucher) {
-              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`)
+              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {offer})
             } else {
-              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invtation to talk.`)
+              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invtation to talk.`, {offer})
             }
+
+            //we already read this offer
+            offer.fromNewMsg = true
+            offer.toNewMsg = false
+            offer.save()
 
             //if we have a voucher from before send it
             this.decorateOffer(subscribe.accept, offer)
@@ -206,6 +228,61 @@ class WebrtcSub {
           }
         }
       }) ()
+      return true
+    }
+  }
+
+  handleReject({reject}) {
+    if (reject) {
+      (async () => {
+        const {listingID, offerID} = reject.offer
+        const offer = await this.logic.getOffer(listingID, offerID)
+
+        if (offer.active && offer.to == this.subscriberEthAddress)
+        {
+          offer.rejected = true
+          await offer.save()
+        }
+      })()
+      return true
+    }
+  }
+
+  handleDismiss({dismiss}) {
+    if (dismiss) {
+      (async () => {
+        const {listingID, offerID} = dismiss.offer
+        const offer = await this.logic.getOffer(listingID, offerID)
+
+        if (offer.active && offer.from == this.subscriberEthAddress)
+        {
+          offer.dismissed = true
+          await offer.save()
+        }
+      })()
+      return true
+    }
+  }
+
+  handleRead({read}) {
+    if(read) {
+      (async () => {
+        const {listingID, offerID} = read.offer
+        const offer = await this.logic.getOffer(listingID, offerID)
+
+        if (offer.active)
+        {
+          if (offer.from == this.subscriberEthAddress)
+          {
+            offer.fromNewMsg = false
+            await offer.save()
+          } else if (offer.to == this.subscriberEthAddress) {
+            offer.toNewMsg = false
+            await offer.save()
+          }
+        }
+          
+      })()
       return true
     }
   }
@@ -276,7 +353,7 @@ class WebrtcSub {
   handleVoucher({ethAddress, voucher}) {
     if(voucher) {
       (async () => {
-        if(this.logic.updateIncreasingVoucher(ethAddress, voucher)) {
+        if(await this.logic.updateIncreasingVoucher(ethAddress, voucher)) {
           this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, voucher})
         }
       })()
@@ -287,12 +364,21 @@ class WebrtcSub {
   handleGetOffers({getOffers}) {
     if (getOffers) {
       (async () => {
-        const options = getOffers
-        const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, options)
-        this.msgHandler(JSON.stringify({pendingOffers}))
+        const {pending} = getOffers
+        if (pending) {
+
+        } else {
+          const offers = await this.logic.getOffers(this.subscriberEthAddress, {})
+          this.msgHandler(JSON.stringify({offers}))
+        }
       })()
       return true
     }
+  }
+
+  async getPendingOffers() {
+    const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, {newOnly:true, active:true, rejected:false})
+    this.msgHandler(JSON.stringify({pendingOffers}))
   }
 
 
@@ -451,7 +537,14 @@ export default class Webrtc {
         await db.InboundAttest.upsert({attestedSiteId:attested.id, ethAddress, url:referralUrl, verified:true, sanitizedUrl})
         return {site, account, accountUrl, links:[sanitizedUrl]}
       }
+    } else if (inbound && inbound.verified) {
+      const attested = await db.AttestedSite.findByPk(inbound.attestedSiteId)
+      if (attested) {
+        const {site, account, accountUrl, verified} = attested
+        return {site, account, accountUrl, links:[inbound.sanitizedUrl]}
+      }
     }
+    return {}
   }
 
   async verifyAcceptOffer(ethAddress, ipfsHash, behalfFee, sig, listingID, offerID) {
@@ -479,7 +572,7 @@ export default class Webrtc {
     const {listingID, offerID, ipfsHash, fee, payout, signature} = voucher
     const offer = await this.getOffer(listingID, offerID)
 
-    if(offer.active && offer.accepted && offer.seller == ethAddress && fee =='0'){
+    if(offer.active && this.isOfferAccepted(offer) && offer.to == ethAddress && fee =='0'){
       const BNpayout = web3.utils.toBN(payout)
       if (web3.utils.toBN(offer.contractOffer.totalValue).lt(BNpayout)) {
         //payout too large
@@ -491,17 +584,16 @@ export default class Webrtc {
           return
         }
       }
-
-      const recoveredAddress = await this.hot.recoveredFinalize(listingID, offerID, ipfsBytes, payout, fee, signature)
-      if (recoverAddress == offer.verifier)
+      const recoveredAddress = await this.hot.recoverFinalize(listingID, offerID, ipfsHash, payout, fee, signature)
+      if (recoveredAddress == offer.contractOffer.verifier)
       {
-        await offer.update({lastVoucher:voucher})
+        await offer.update({lastVoucher:voucher, fromNewMsg:true, toNewMsg:true})
         return true
       }
 
       if(recoveredAddress == this.hot.account.address && (recoveredAddress == offer.seller || recoveredAddress == offer.initInfo.offerTerms.sideVerifier)) 
       {
-        await offer.update({lastVoucher:voucher})
+        await offer.update({lastVoucher:voucher, fromNewMsg:true, toNewMsg:true})
         return true
       }
     }
@@ -609,13 +701,27 @@ export default class Webrtc {
     return Number(offer.contractOffer.status) == 2
   }
 
+  async getDisplayOffer(listingID, offerID) {
+    const offer = await this.getOffer(listingID, offerID)
+    return offer.get({plain:true})
+  }
+
   async getOffers(ethAddress, options) {
     const result = []
+    const {newOnly, active, rejected} = options
     const offers = await db.WebrtcOffer.findAll({where: {
-      ...options,
+      active,
+      rejected,
       [db.Sequelize.Op.or]: [ {to:ethAddress}, {from:ethAddress} ] }})
     for (const offer of offers) {
       const {listingID, offerID} = splitFullId(offer.fullId)
+      if (newOnly) {
+        if((offer.to == ethAddress && !offer.toNewMsg) 
+          || (offer.from == ethAddress && !offer.fromNewMsg))
+        {
+          continue
+        }
+      }
       //update the id from the blockchain hopefully it's still active
       const updatedOffer = await this.getOffer(listingID, offerID)
       if (updatedOffer.active)
