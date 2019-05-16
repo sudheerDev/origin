@@ -327,7 +327,7 @@ class Linker {
   }
 
   getServerInfo(currentVersion) {
-    const needUpdate = Number(currentVersion) < API_VERSION
+    const needUpdate = Number(currentVersion) < Number(API_VERSION)
     return {
       providerUrl,
       contractAddresses: origin.contractService.getContractAddresses(),
