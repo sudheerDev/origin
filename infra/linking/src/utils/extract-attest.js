@@ -54,6 +54,53 @@ function getYTVideoUrl(videoId) {
   return `https://www.youtube.com/watch?v=${videoId}`
 }
 
+export async function extractAccountStat(accountUrl) {
+  const site = findReferralSite(accountUrl)
+
+  if (site == YOUTUBE_SITE) {
+    const response = await fetch(accountUrl)
+    if(response.ok)
+    {
+      const $ = cheerio.load(await response.text())
+      const channelId = $('meta[itemprop="channelId"]').attr('content')
+      const description = $('meta[name="description"]').attr('content')
+
+      const referenceAccountUrl = getYTAccountUrl(channelId)
+      if (referenceAccountUrl == accountUrl){
+        const subscribersString = $('span.subscribed').html()
+        let subscribers
+        if (subscribersString){
+          subscribers = Number(subscribersString.replace(/,/g, ''))
+        }
+        return {description, subscribers}
+      } else {
+        console.log(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
+      }
+    }
+  } else if (site == TWITTER_SITE) {
+    const response = await fetch(accountUrl)
+
+    if (response.ok) {
+      const $ = cheerio.load(await response.text())
+      const description = $('meta[name="description"]').attr('content')
+      const twitUrlString = $('link[rel="canonical"]').attr('href')
+
+      if(twitUrlString.toLowerCase() == accountUrl.toLowerCase()) {
+        const followersString = $('a.ProfileNav-stat[data-nav="followers"]').find('span.ProfileNav-value').attr('data-count')
+        let followers
+        if (followersString)
+        {
+          followers = Number(followersString)
+        }
+        return {description, followers}
+      } else {
+        console.log(`extracted twitterUrl: ${twitUrlString} does not match: ${accountUrl}`)
+      }
+    }
+  }
+  return null
+}
+
 export default async function extractAttestInfo(attestUrl, referralUrl) {
   const site = findReferralSite(referralUrl)
   console.log("found site:", site)

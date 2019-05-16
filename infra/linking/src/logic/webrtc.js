@@ -1,7 +1,7 @@
 import redis from 'redis'
 import origin, { web3 } from './../services/origin'
 import db from './../models/'
-import extractAttestInfo from './../utils/extract-attest'
+import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
 import querystring from 'querystring'
 
 const CHANNEL_PREFIX = "webrtc."
@@ -486,6 +486,9 @@ export default class Webrtc {
             && attested.account == attest.account)
           {
             attest.verified = true
+            if(attested.info) {
+              attest.info = attested.info
+            }
           }
         }
       }
@@ -534,12 +537,24 @@ export default class Webrtc {
         if (!attested) {
           attested = await db.AttestedSite.create({ethAddress, site, account, accountUrl, verified:true})
         }
+        //update the stats
+        const info = await extractAccountStat(attested.accountUrl)
+        if (info)
+        {
+          attested.update({info})
+        }
         await db.InboundAttest.upsert({attestedSiteId:attested.id, ethAddress, url:referralUrl, verified:true, sanitizedUrl})
         return {site, account, accountUrl, links:[sanitizedUrl]}
       }
     } else if (inbound && inbound.verified) {
       const attested = await db.AttestedSite.findByPk(inbound.attestedSiteId)
       if (attested) {
+        //update the stats
+        const info = await extractAccountStat(attested.accountUrl)
+        if (info)
+        {
+          attested.update({info})
+        }
         const {site, account, accountUrl, verified} = attested
         return {site, account, accountUrl, links:[inbound.sanitizedUrl]}
       }
