@@ -724,7 +724,7 @@ export default class Webrtc {
 
   async getOffers(ethAddress, options) {
     const result = []
-    const {newOnly, active, rejected} = options
+    const {newOnly = false, active = false, rejected = false } = options
     const offers = await db.WebrtcOffer.findAll({where: {
       active,
       rejected,
