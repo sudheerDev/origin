@@ -89,8 +89,8 @@ services:
     ports:
       - "9999:9999"
     environment:
-      - IPFS_API_URL=http://services:5002
-      - IPFS_GATEWAY_URL=http://services:8080
+      - IPFS_API_URL=http://services-linker:5002
+      - IPFS_GATEWAY_URL=http://services-linker:8080
     command: npm run start --prefix infra/ipfs-proxy
 
   linking-linker:
