@@ -100,9 +100,9 @@ class WebrtcSub {
 
   onServerMessage(handler) {
     this.redisSub.on('message', (channel, msg) => {
-      const {from, subscribe, updated} = JSON.parse(msg)
+      const {from, subscribe, updated, rejected} = JSON.parse(msg)
       const { offer, accept } = subscribe || {}
-      if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept)
+      if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept || rejected)
       {
         console.log("sending message to client:", msg)
         try {
@@ -143,6 +143,10 @@ class WebrtcSub {
       }
     }
     this.peers = [ethAddress]
+  }
+
+  sendOffer(updatedOffer) {
+    this.msgHandler(JSON.stringify({updatedOffer}))
   }
 
   decorateOffer(e, offer) {
@@ -199,6 +203,7 @@ class WebrtcSub {
 
             // this is a good offer
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
+            this.sendOffer(offer)
           }
         } else if (accept) {
           const {
@@ -225,6 +230,7 @@ class WebrtcSub {
             //if we have a voucher from before send it
             this.decorateOffer(subscribe.accept, offer)
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
+            this.sendOffer(offer)
           }
         }
       }) ()
@@ -241,7 +247,9 @@ class WebrtcSub {
         if (offer.active && offer.to == this.subscriberEthAddress)
         {
           offer.rejected = true
+          console.log("saving rejected offer:", offer.rejected)
           await offer.save()
+          this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{listingID, offerID}})
         }
       })()
       return true
@@ -363,21 +371,14 @@ class WebrtcSub {
 
   handleGetOffers({getOffers}) {
     if (getOffers) {
-      (async () => {
-        const {pending} = getOffers
-        if (pending) {
-
-        } else {
-          const offers = await this.logic.getOffers(this.subscriberEthAddress, {})
-          this.msgHandler(JSON.stringify({offers}))
-        }
-      })()
+      const options = getOffers
+      this.getPendingOffers(options)
       return true
     }
   }
 
-  async getPendingOffers() {
-    const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, {newOnly:true, active:true, rejected:false})
+  async getPendingOffers(options) {
+    const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, options)
     this.msgHandler(JSON.stringify({pendingOffers}))
   }
 
@@ -724,20 +725,11 @@ export default class Webrtc {
 
   async getOffers(ethAddress, options) {
     const result = []
-    const {newOnly = false, active = false, rejected = false } = options
     const offers = await db.WebrtcOffer.findAll({where: {
-      active,
-      rejected,
+      ...options,
       [db.Sequelize.Op.or]: [ {to:ethAddress}, {from:ethAddress} ] }})
     for (const offer of offers) {
       const {listingID, offerID} = splitFullId(offer.fullId)
-      if (newOnly) {
-        if((offer.to == ethAddress && !offer.toNewMsg) 
-          || (offer.from == ethAddress && !offer.fromNewMsg))
-        {
-          continue
-        }
-      }
       //update the id from the blockchain hopefully it's still active
       const updatedOffer = await this.getOffer(listingID, offerID)
       if (updatedOffer.active)
