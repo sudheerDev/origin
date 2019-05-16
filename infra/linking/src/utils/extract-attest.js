@@ -136,6 +136,8 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
         if (description.includes(attestUrl)) {
           console.log("Video verified")
           return {site, account:channelId, accountUrl:getYTAccountUrl(channelId), sanitizedUrl:getYTVideoUrl(videoId)}
+        } else {
+          console.warn(`Can not find url: ${attestUrl} in video description`)
         }
       } else if (type == 'profile' && channelId) {
         for(const link of $('li.channel-links-item').get())
@@ -146,6 +148,7 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
             return {site, account:channelId, accountUrl, sanitizedUrl:accountUrl}
           }
         }
+        console.warn(`Can not find url: ${attestUrl} in any of the profile links`)
       }
 
     }

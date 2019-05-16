@@ -37,7 +37,8 @@ Migrate db if necessary:
 In case an already existing migration has been modified undo the migration before applying it again: 
 `DATABASE_URL=postgres://origin:origin@localhost/origin npm run undo-migrate`
 
+Copy dev.env to .env and do any necessary environmental variables adjustements. Source the variables:
+`source .evn`
+
 Run linker with the necessary environmental variables
-`REDIS_URL=redis://localhost:6379 PROVIDER_URL=http://localhost:8545 ATTESTATION_ACCOUNT=0x99C03fBb0C995ff1160133A8bd210D0E77bCD101 HOT_WALLET_PK=C87509A1C067BBDE78BEB793E6FA76530B6382A4C0241E5E4A9EC0A0F44DC0D3 DATABASE_URL=postgres://origin:origin@localhost/origin npm run start`
-
-
+`npm run start`
