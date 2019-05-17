@@ -1,0 +1,45 @@
+LOG OF RUN ON MAINNET (MULTI-SIG STEP FAILED):
+$ npx truffle migrate --network mainnet --dry-run
+Configured truffle to use PrivateKey provider for Mainnet.
+Using network 'mainnet' (dry run).
+
+Running migration: 1_initial_migration.js
+  Deploying Migrations...
+  ... 0x6cfa22c0fcab8f375f3ebc6ecfa3b83c1035cd84ad54943ab3beee6bf2bb15dd
+  Migrations: 0x973f31e96f4920f84e5441a5553c4e708810834f
+Saving successful migration to network...
+  ... 0x0a6bd4cbe5e67dd7382ec1ea7b6831f3fb812589cf4553c7f6e6e12aadf5881e
+Saving artifacts...
+Running migration: 2_deploy_vB_marketplace_contract.js
+  Running step...
+  Deploying VB_Marketplace...
+  ... 0x35f9a3495983339df6e44bca749707166ac4d694ebcefe8572a131fe054de072
+  VB_Marketplace: 0x45994d68b77b37da4ce0a063547e4a733bc551a7
+WARNING: no affiliate whitelisted for network mainnet-fork
+Added marketplace 0x45994d68b77b37da4ce0a063547e4a733bc551a7 to whitelist
+Saving successful migration to network...
+  ... 0x1a8a9c59a430c97e3f053aceac8390a7563d66d4d515ef34d585157172542c21
+Saving artifacts...
+francks-mbp:contracts franck$ npx truffle migrate --network mainnet
+Configured truffle to use PrivateKey provider for Mainnet.
+Using network 'mainnet'.
+
+Running migration: 1_initial_migration.js
+  Deploying Migrations...
+  ... 0x405f2bf7c4c84bc8177a69969f1588b4389478a9e0681e221a49862343ff21b6
+  Migrations: 0x973f31e96f4920f84e5441a5553c4e708810834f
+Saving successful migration to network...
+  ... 0xc7c3d7cb03dc4b99c161ba4c33287934f6896960c8c6eed74ce01699cb7a87ed
+Saving artifacts...
+Running migration: 2_deploy_vB_marketplace_contract.js
+  Running step...
+  Deploying VB_Marketplace...
+  ... 0x97bf3ffe8a04a90c476f31f02e7c4cf079b65b983c7177fb38ac2530bf7637d3
+  VB_Marketplace: 0x45994d68b77b37da4ce0a063547e4a733bc551a7
+whitelisting affiliate 0x7aD0fa0E2380a5e0208B25AC69216Bd7Ff206bF8
+  ... 0xd70d8c5150ba060986cd3ec9abee6f44720f26bd9a4863e50af46dc40e422c1e
+Added marketplace 0x45994d68b77b37da4ce0a063547e4a733bc551a7 to whitelist
+Error encountered, bailing. Network state unknown. Review successful transactions manually.
+ReferenceError: marketplaceMultiSig is not defined
+    at deployContracts (/Users/franck/src/ethcam/origin/packages/contracts/migrations/2_deploy_vB_marketplace_contract.js:62:41)
+
