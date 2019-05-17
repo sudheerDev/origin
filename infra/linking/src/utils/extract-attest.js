@@ -10,7 +10,7 @@ import logger from 'logger'
 const YOUTUBE_SITE = 'youtube'
 const TWITTER_SITE = 'twitter'
 const LINKEDIN_SITE = 'linkedin'
-const INSTAGRAM_SITE = 'isntagram'
+const INSTAGRAM_SITE = 'instagram'
 const TWITCH_SITE = 'twitch'
 const PINTEREST_SITE = 'pinterest'
 
@@ -85,11 +85,11 @@ function getYTVideoUrl(videoId) {
 export async function extractAccountStat(accountUrl) {
   const site = findReferralSite(accountUrl)
 
-  if (site == YOUTUBE_SITE) {
-    const response = await fetch(accountUrl)
-    if(response.ok)
-    {
-      const $ = cheerio.load(await response.text())
+  const response = await fetch(accountUrl)
+  if(response.ok)
+  {
+    const $ = cheerio.load(await response.text())
+    if (site == YOUTUBE_SITE) {
       const channelId = $('meta[itemprop="channelId"]').attr('content')
       const description = $('meta[name="description"]').attr('content')
 
@@ -105,14 +105,7 @@ export async function extractAccountStat(accountUrl) {
         throw new AttestationError(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
         logger.info(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
       }
-    } else {
-      throw new AttestationError(`Can not fetch account: ${accountUrl} on ${site}`)
-    }
-  } else if (site == TWITTER_SITE) {
-    const response = await fetch(accountUrl)
-
-    if (response.ok) {
-      const $ = cheerio.load(await response.text())
+    } else if (site == TWITTER_SITE) {
       const description = $('meta[name="description"]').attr('content')
       const tweetUrlString = $('link[rel="canonical"]').attr('href')
 
@@ -127,11 +120,20 @@ export async function extractAccountStat(accountUrl) {
       } else {
         logger.info(`extracted twitterUrl: ${tweetUrlString} does not match: ${accountUrl}`)
       }
+    } else if (site == INSTAGRAM_SITE) {
+      const description = $('meta[name="description"]').attr('content')
+      const matchResult = /^\s*(.*)\s*Followers.*/g.exec(description)
+      if (!matchResult || matchResult.length !== 2) {
+        throw new AttestationError(`Can not fetch instagram followers from url: ${accountUrl}`)
+      }
+      const followers = matchResult[1]
+      return {description, followers}
     } else {
-      throw new AttestationError(`Can not fetch account: ${accountUrl} on ${site}`)
+      throw new AttestationError(`Unrecognised site: ${site} `)
     }
+  } else {
+    throw new AttestationError(`Can not fetch account: ${accountUrl} on ${site}`)
   }
-  return null
 }
 
 export default async function extractAttestInfo(attestUrl, referralUrl) {
@@ -187,6 +189,32 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       } else {
         console.warn(`Unrecognised ${site} page: ${type}`)
         throw new AttestationError(`Unrecognised ${site} page: ${type}`)
+      }
+    } else {
+      throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
+    }
+  }
+  else if (site == INSTAGRAM_SITE) {
+    const response = await fetch(referralUrl)
+    logger.info("fetching referralUrl:", referralUrl)
+
+    if (response.ok) {
+      const instagramHtml = await response.text()
+
+      const matchResult = /^https:\/\/www\.instagr.*\/(.*)\//g.exec(referralUrl)
+      if (!matchResult || matchResult.length !== 2) {
+        throw new AttestationError(`Invalid instagram account link: ${referralUrl}`)
+      }
+
+      const account = matchResult[1]
+      const accountUrl = `https://www.instagram.com/${account}`
+      const sanitizedUrl = accountUrl
+      if (instagramHtml.includes(attestUrl.replace(/&.*/g, '')))
+      {
+        return {site, account, accountUrl, sanitizedUrl}
+      } else {
+        console.warn(`Can not find link ${attestUrl} in user biography`)
+        throw new AttestationError(`Can not find link ${attestUrl} in user biography`)
       }
     } else {
       throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
