@@ -300,6 +300,12 @@ router.get('/webrtc-attests/:accountAddress', async (req, res) => {
   res.send(result)
 })
 
+router.get('/webrtc-static', async (req, res) => {
+  const accountAddress = req.query.p
+  res.send(await webrtc.getPage(accountAddress))
+})
+
+
 
 router.post('/webrtc-user-info', async (req, res) => {
   const { ipfsHash } = req.body

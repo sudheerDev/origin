@@ -326,12 +326,20 @@ class Linker {
     return {}
   }
 
+  getIpfsGateway() {
+    return origin.ipfsService.gateway
+  }
+
+  getDappUrl() {
+    return DAPP_URL
+  }
+
   getServerInfo(currentVersion) {
     const needUpdate = Number(currentVersion) < Number(API_VERSION)
     return {
       providerUrl,
       contractAddresses: origin.contractService.getContractAddresses(),
-      ipfsGateway: origin.ipfsService.gateway,
+      ipfsGateway: this.getIpfsGateway(),
       ipfsApi: origin.ipfsService.api,
       dappUrl: DAPP_URL,
       attestationAccount: ATTESTATION_ACCOUNT,

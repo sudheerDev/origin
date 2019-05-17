@@ -2,6 +2,7 @@ import redis from 'redis'
 import origin, { web3 } from './../services/origin'
 import db from './../models/'
 import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
+import createHtml from './../utils/static-web'
 import querystring from 'querystring'
 
 const CHANNEL_PREFIX = "webrtc."
@@ -738,5 +739,34 @@ export default class Webrtc {
       }
     }
     return result
+  }
+
+  getIpfsUrl(hash) {
+    return `${this.linker.getIpfsGateway()}/ipfs/${hash}`
+  }
+
+  async getPage(accountAddress) {
+    const BUNDLE_PATH = process.env.BUNDLE_PATH || "/"
+    const keywords = "video, chat, ethereum, facetoface"
+    if (accountAddress && accountAddress.startsWith("0x"))
+    {
+      const account = await this.getUserInfo(accountAddress)
+      const title = account.name || accountAddress
+      const description = account.description || ""
+      const url = this.linker.getDappUrl() + "?p=" + accountAddress
+      const imageUrl = account.icon && this.getIpfsUrl(account.icon)
+
+      // map in the iconSource
+      if( imageUrl) {
+        account.iconSource = {uri:imageUrl}
+      }
+      return createHtml({title, description, url, imageUrl}, {account}, BUNDLE_PATH)
+    } else {
+      const title = "How much is a shared moment worth?"
+      const description = "Pay to share a moment with those that your admire most."
+      const url = this.linker.getDappUrl() 
+      const imageUrl = null
+      return createHtml({title, description, url, imageUrl}, {index:true}, BUNDLE_PATH)
+    }
   }
 }
