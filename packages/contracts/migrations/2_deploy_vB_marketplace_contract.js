@@ -9,14 +9,14 @@ module.exports = function(deployer, network) {
 
 async function deployContracts(deployer, network) {
   const token = await OriginToken.deployed()
-  const tokenOwner = await token.owner()
+  //const tokenOwner = await token.owner()
   const netId = OriginToken.network_id
 
   await deployer.deploy(VB_Marketplace, token.address, netId)
-  const contractOwner = await token.owner()
+  /*const contractOwner = await token.owner()
   if (!(network === 'mainnet' || process.env['SIMULATE_MAINNET'])) {
     await token.addCallSpenderWhitelist(VB_Marketplace.address, {from:contractOwner})
-  }
+  }*/
   
   const marketplace = await VB_Marketplace.deployed()
   const from = await marketplace.owner()
@@ -45,7 +45,7 @@ async function deployContracts(deployer, network) {
     console.log(`WARNING: no affiliate whitelisted for network ${network}`)
   }
   
-  await token.addAllowedTransactor(marketplace.address, { from: tokenOwner })
+  //await token.addAllowedTransactor(marketplace.address, { from: tokenOwner })
   console.log(`Added marketplace ${marketplace.address} to whitelist`)
   if (network === 'mainnet' || process.env['SIMULATE_MAINNET']) {
     const accounts = await new Promise((resolve, reject) => {
