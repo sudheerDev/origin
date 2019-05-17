@@ -5,6 +5,9 @@ import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
 import createHtml from './../utils/static-web'
 import querystring from 'querystring'
 
+import AttestationError from 'utils/attestation-error'
+import logger from 'logger'
+
 const CHANNEL_PREFIX = "webrtc."
 const CHANNEL_ALL = "webrtcall"
 
@@ -105,11 +108,11 @@ class WebrtcSub {
       const { offer, accept } = subscribe || {}
       if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept || rejected)
       {
-        console.log("sending message to client:", msg)
+        logger.info("sending message to client:", msg)
         try {
           handler(msg)
         } catch(error) {
-          console.log(error)
+          logger.info(error)
         }
       }
       if(channel == CHANNEL_ALL && from == this.subscriberEthAddress && updated) {
@@ -173,7 +176,7 @@ class WebrtcSub {
         if (offer) {
           const { listingID, offerID, transactionHash, blockNumber } = subscribe.offer
           const offer = await this.logic.getOffer(listingID, offerID, transactionHash, blockNumber )
-          console.log("Offer is:", offer)
+          logger.info("Offer is:", offer)
 
           // TODO: we need a price on this offer so need to load up profiles here as well
           if (offer && offer.active && !offer.rejected
@@ -306,7 +309,7 @@ class WebrtcSub {
   handleExchange({ethAddress, exchange}) {
     if (exchange){
       if (ethAddress == this.subscriberEthAddress) {
-        console.log("Trying to subscribe to self:", ethAddress)
+        logger.info("Trying to subscribe to self:", ethAddress)
       } else {
         this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, exchange})
       }
@@ -385,7 +388,7 @@ class WebrtcSub {
 
 
   clientMessage(msgObj) {
-    console.log("We have a message from the client:", msgObj)
+    logger.info("We have a message from the client:", msgObj)
     for (const handler of this.msgHandlers) {
       if (handler.call(this, msgObj) ) {
         return
@@ -417,7 +420,7 @@ export default class Webrtc {
   }
 
   subscribe(ethAddress, authSignature, message, rules, timestamp, walletToken) {
-    console.log("call subscribing...", ethAddress)
+    logger.info("call subscribing...", ethAddress)
     if (!(message.includes(rules.join(",")) && message.includes(timestamp))) {
       throw new Error("Invalid subscription message sent")
     }
@@ -428,18 +431,18 @@ export default class Webrtc {
 
     const currentDate = new Date()
     const tsDate = new Date(timestamp)
-    console.log("subscribing...", ethAddress)
+    logger.info("subscribing...", ethAddress)
     const recovered = web3.eth.accounts.recover(message, authSignature)
     // we keep thje signature fresh for every 15 days
     if (ethAddress == recovered && currentDate - tsDate < 15 * 24 * 60 * 60 * 1000)
     {
       if (rules.includes("VIDEO_MESSAGE"))
       {
-        console.log("Authorized connection for:", ethAddress)
+        logger.info("Authorized connection for:", ethAddress)
         return new WebrtcSub(ethAddress, this.redis, this.redis.duplicate(), this.activeAddresses, this, walletToken)
       }
     }
-    console.error("signature mismatch:", recovered, " vs ", ethAddress)
+    logger.error("signature mismatch:", recovered, " vs ", ethAddress)
     throw new Error(`We cannot auth the signature`)
   }
 
@@ -461,7 +464,7 @@ export default class Webrtc {
     // we should verify the signature for this
     if (await this.hot.verifyProfile(info))
     {
-      console.log("submitting ipfsHash:", ipfsHash)
+      logger.info("submitting ipfsHash:", ipfsHash)
       await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info})
       this.redis.publish(CHANNEL_ALL, JSON.stringify({from:info.address, updated:1}))
       return true
@@ -518,7 +521,7 @@ export default class Webrtc {
     return result
   }
 
-  async registerReferral(ethAddress, attestUrl, referralUrl) {
+  async registerReferral(ethAddress, attestUrl, referralUrl, res) {
     const a = new URL(attestUrl)
     const query = querystring.parse(a.search.substring(1))
     if (!(query.p == ethAddress && "attest" in query))
@@ -546,7 +549,9 @@ export default class Webrtc {
           attested.update({info})
         }
         await db.InboundAttest.upsert({attestedSiteId:attested.id, ethAddress, url:referralUrl, verified:true, sanitizedUrl})
-        return {site, account, accountUrl, links:[sanitizedUrl]}
+        res.status = 200
+        res.json({ site, account, accountUrl, links:[sanitizedUrl] })
+        return
       }
     } else if (inbound && inbound.verified) {
       const attested = await db.AttestedSite.findByPk(inbound.attestedSiteId)
@@ -558,9 +563,14 @@ export default class Webrtc {
           attested.update({info})
         }
         const {site, account, accountUrl, verified} = attested
-        return {site, account, accountUrl, links:[inbound.sanitizedUrl]}
+        res.json({ site, account, accountUrl, links:[inbound.sanitizedUrl] })
+        return
+      } else {
+        throw new AttestationError('Can not find Attestation Site')
       }
     }
+
+    throw new Error("What is up yo?")
     return {}
   }
 
@@ -658,7 +668,7 @@ export default class Webrtc {
     // grab info if available...
     let initInfo
     if (transactionHash && blockNumber) {
-      console.log("grabbing event from:", transactionHash, blockNumber, contractOffer.buyer, listingID, offerID)
+      logger.info("grabbing event from:", transactionHash, blockNumber, contractOffer.buyer, listingID, offerID)
       await new Promise((resolve, reject) => {
         this.contract.getPastEvents('OfferCreated', {
           filter: {party:contractOffer.buyer, listingID, offerID},
@@ -668,11 +678,11 @@ export default class Webrtc {
           if (events.length > 0 )
           {
             const event = events[0]
-            console.log("event retreived:", event, error)
+            logger.info("event retreived:", event, error)
             if (event && event.transactionHash == transactionHash) {
               const offerCreated = filterObject(event.returnValues)
               initInfo = {offerCreated, transactionHash, blockNumber}
-              console.log("initInfo:", initInfo)
+              logger.info("initInfo:", initInfo)
             }
           }
           resolve(true);
