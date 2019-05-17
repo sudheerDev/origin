@@ -31,6 +31,7 @@
     "@babel/runtime": "^7.3.4",
     "@origin/js": "^0.8.6",
     "apn": "^2.2.0",
+    "babel-plugin-module-resolver": "^3.2.0",
     "cheerio": "^1.0.0-rc.3",
     "cookie-parser": "^1.4.3",
     "cors": "^2.8.5",
@@ -71,6 +72,9 @@
     "sourceMaps": "both",
     "retainLines": true,
     "plugins": [
+      ["module-resolver", {
+        "root": ["./src"]
+      }],
       "@babel/plugin-transform-runtime"
     ]
   },

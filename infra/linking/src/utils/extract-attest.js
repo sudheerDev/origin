@@ -4,42 +4,70 @@ import cheerio from 'cheerio'
 import safeEval from 'safe-eval'
 import querystring from 'querystring'
 
-const YOUTUBE_SITE = "youtube"
-const TWITTER_SITE = "twitter"
-const LINKEDIN_SITE = "linkedin"
+import AttestationError from 'utils/attestation-error'
+import logger from 'logger'
+
+const YOUTUBE_SITE = 'youtube'
+const TWITTER_SITE = 'twitter'
+const LINKEDIN_SITE = 'linkedin'
+const INSTAGRAM_SITE = 'isntagram'
+const TWITCH_SITE = 'twitch'
+const PINTEREST_SITE = 'pinterest'
 
 const YOUTUBE_DOMAINS = ['youtube.com', 'youtu.be']
 const TWITTER_DOMAINS = ['twitter.com', 'twttr.net', 'twttr.com']
-const LINKEDIN_DOMAINS = ["linkedin.com"]
+const LINKEDIN_DOMAINS = ['linkedin.com']
+const INSTAGRAM_DOMAINS = ['instagram.com', 'instagr.am']
+const TWITCH_DOMAINS = ['instagram.com', 'instagr.am']
+const PINTEREST_DOMAINS = ['pinterest.com', 'pinimg.com', 'pinterest.es', 'pinterest.ru', 'pinterest.jp', 'pinterest.co.uk', 'pinterest.de', 'pinterest.fr']
 
 function matchDomains(host, domains) {
   const ihost = host.toLowerCase()
   for (const domain of domains) {
-    console.log("matching:", domain, " vs ", ihost)
+    logger.info("matching:", domain, " vs ", ihost)
     //either it is the domain or it's a subdomain
-    if (ihost == domain || (ihost.endsWith(domain) && ihost[ihost.length - domain.length -1] == '.'))
-    {
-      return true
-    }
+    return ihost == domain || (ihost.endsWith(domain) && ihost[ihost.length - domain.length -1] == '.')
   }
 }
 
 function findReferralSite(referralUrl) {
   const url = new URL(referralUrl)
+  const domainMap = [
+    {
+      site: YOUTUBE_SITE,
+      domains: YOUTUBE_DOMAINS
+    },
+    {
+      site: TWITTER_SITE,
+      domains: TWITTER_DOMAINS
+    },
+    {
+      site: LINKEDIN_SITE,
+      domains: LINKEDIN_DOMAINS
+    },
+    {
+      site: INSTAGRAM_SITE,
+      domains: INSTAGRAM_DOMAINS
+    },
+    {
+      site: TWITCH_SITE,
+      domains: TWITCH_DOMAINS
+    },
+    {
+      site: PINTEREST_SITE,
+      domains: PINTEREST_DOMAINS
+    },
+  ]
 
-  if (matchDomains(url.host, YOUTUBE_DOMAINS))
-  {
-    // Ok we're a youtube url
-    return YOUTUBE_SITE
+  for (let i = 0; i < domainMap.length; i++) {
+    const { site, domains } = domainMap[i]
+    if (matchDomains(url.host, domains))
+    {
+      return site
+    }
   }
-  else if (matchDomains(url.host, TWITTER_DOMAINS))
-  {
-    return TWITTER_SITE
-  }
-  else if (matchDomains(url.host, LINKEDIN_DOMAINS))
-  {
-    return LINKEDIN_SITE
-  }
+  
+  throw new AttestationError(`Unrecognised domain in referral url: ${referralUrl}`)
 }
 
 function slashEscaped(string) {
@@ -74,8 +102,11 @@ export async function extractAccountStat(accountUrl) {
         }
         return {description, subscribers}
       } else {
-        console.log(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
+        throw new AttestationError(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
+        logger.info(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
       }
+    } else {
+      throw new AttestationError(`Can not fetch account: ${accountUrl} on ${site}`)
     }
   } else if (site == TWITTER_SITE) {
     const response = await fetch(accountUrl)
@@ -83,9 +114,9 @@ export async function extractAccountStat(accountUrl) {
     if (response.ok) {
       const $ = cheerio.load(await response.text())
       const description = $('meta[name="description"]').attr('content')
-      const twitUrlString = $('link[rel="canonical"]').attr('href')
+      const tweetUrlString = $('link[rel="canonical"]').attr('href')
 
-      if(twitUrlString.toLowerCase() == accountUrl.toLowerCase()) {
+      if(tweetUrlString.toLowerCase() == accountUrl.toLowerCase()) {
         const followersString = $('a.ProfileNav-stat[data-nav="followers"]').find('span.ProfileNav-value').attr('data-count')
         let followers
         if (followersString)
@@ -94,8 +125,10 @@ export async function extractAccountStat(accountUrl) {
         }
         return {description, followers}
       } else {
-        console.log(`extracted twitterUrl: ${twitUrlString} does not match: ${accountUrl}`)
+        logger.info(`extracted twitterUrl: ${tweetUrlString} does not match: ${accountUrl}`)
       }
+    } else {
+      throw new AttestationError(`Can not fetch account: ${accountUrl} on ${site}`)
     }
   }
   return null
@@ -103,26 +136,26 @@ export async function extractAccountStat(accountUrl) {
 
 export default async function extractAttestInfo(attestUrl, referralUrl) {
   const site = findReferralSite(referralUrl)
-  console.log("found site:", site)
+  logger.info("found site:", site)
 
   const rUrl = new URL(referralUrl)
   if (!rUrl.pathname && !rUrl.search) {
     // we are probably blocked by crossdomain policy
     // and have only a host
-    return {}
+    throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
   }
 
 
   if (site == YOUTUBE_SITE) {
     const response = await fetch(referralUrl)
-    console.log("fetching referralUrl:", referralUrl)
+    logger.info("fetching referralUrl:", referralUrl)
 
     if (response.ok) {
       const $ = cheerio.load(await response.text())
 
       /*
       for (const m of $('meta').get()) {
-        console.log("Meta:", $(m).attr())
+        logger.info("Meta:", $(m).attr())
       }
       */
       const type = $('meta[property="og:type"]').attr('content')
@@ -130,14 +163,15 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       const channelId = $('meta[itemprop="channelId"]').attr('content')
       const videoId = $('meta[itemprop="videoId"]').attr('content')
 
-      console.log("stats:", {type, description, channelId, videoId})
+      logger.info("stats:", {type, description, channelId, videoId})
 
       if (type.startsWith('video.') && videoId) {
         if (description.includes(attestUrl)) {
-          console.log("Video verified")
+          logger.info("Video verified")
           return {site, account:channelId, accountUrl:getYTAccountUrl(channelId), sanitizedUrl:getYTVideoUrl(videoId)}
         } else {
           console.warn(`Can not find url: ${attestUrl} in video description`)
+          throw new AttestationError(`Can not find url: ${attestUrl} in video description`)
         }
       } else if (type == 'profile' && channelId) {
         for(const link of $('li.channel-links-item').get())
@@ -149,28 +183,34 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
           }
         }
         console.warn(`Can not find url: ${attestUrl} in any of the profile links`)
+        throw new AttestationError(`Can not find url: ${attestUrl} in any of the profile links`)
+      } else {
+        console.warn(`Unrecognised ${site} page: ${type}`)
+        throw new AttestationError(`Unrecognised ${site} page: ${type}`)
       }
-
+    } else {
+      throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
     }
   }
   else if (site == TWITTER_SITE) {
     const response = await fetch(referralUrl)
-    console.log("fetching referralUrl:", referralUrl)
+    logger.info("fetching referralUrl:", referralUrl)
 
     if (response.ok) {
       const $ = cheerio.load(await response.text())
       const description = $('meta[property="og:description"]').attr('content')
-      const twitUrlString = $('meta[property="og:url"]').attr('content')
+      const tweetUrlString = $('meta[property="og:url"]').attr('content')
 
-      console.log("twit description and url:", description, twitUrlString)
-      const twitUrl = new URL(twitUrlString)
-      const splitPaths = twitUrl.pathname.split("/")
+      logger.info("tweet description and url:", description, tweetUrlString)
+      const tweetUrl = new URL(tweetUrlString)
+      const splitPaths = tweetUrl.pathname.split("/")
 
-      if (!twitUrl.hostname.endsWith("twitter.com") || splitPaths.length != 4 ||  splitPaths[2] != "status")
+      if (!tweetUrl.hostname.endsWith("twitter.com") || splitPaths.length != 4 ||  splitPaths[2] != "status")
       {
-        console.log("Not a valid twit:", twitUrl)
-        return {}
+        logger.warn(`Not a valid tweet: ${tweetUrl}`)
+        throw new AttestationError(`Not a valid tweet: ${tweetUrl}`)
       }
+
       const account = splitPaths[1]
       const accountUrl = `https://twitter.com/${account}`
       const sanitizedUrl = `${accountUrl}/status/${splitPaths[3]}`
@@ -188,8 +228,16 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
               return result
             }
           }
+
+          logger.warn(`Can not find referral url in tweet`)
+          throw new AttestationError(`Can not find referral url in tweet`)
+        } else {
+          logger.warn(`Unexpected twitter url format`)
+          throw new AttestationError(`Unexpected twitter url format`)
         }
       }
+    } else {
+      throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
     }
   } else if ( site == LINKEDIN_SITE ) {
     const response = await fetchH2(referralUrl, 
@@ -199,7 +247,7 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
         'Accept-Language': 'en-US,en;q=0.7,zh;q=0.3',
         'Upgrade-Insecure-Requests': '1'
       }})
-    console.log("fetchH2 response", response)
+    logger.info("fetchH2 response", response)
 
     if (response.ok) {
       const $ = cheerio.load(await response.text())
@@ -210,7 +258,7 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
 
       if (!linkUrl.hostname.endsWith("linkedin.com") || splitPaths.length != 3 || splitPaths[1] != "in")
       {
-        console.log("Not a valid linkedin profile:", linkUrl)
+        logger.info("Not a valid linkedin profile:", linkUrl)
         return {}
       }
       const account = splitPaths[2]
