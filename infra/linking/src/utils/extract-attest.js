@@ -128,6 +128,11 @@ export async function extractAccountStat(accountUrl) {
       }
       const followers = matchResult[1]
       return {description, followers}
+    } else if (site == PINTEREST_SITE) {
+      const description = $('meta[name="description"]').attr('content')
+      const followers = $('meta[name="pinterestapp:followers"]').attr('content')
+      
+      return {description, followers}
     } else {
       throw new AttestationError(`Unrecognised site: ${site} `)
     }
@@ -207,7 +212,7 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       }
 
       const account = matchResult[1]
-      const accountUrl = `https://www.instagram.com/${account}`
+      const accountUrl = `https://www.instagram.com/${account}/`
       const sanitizedUrl = accountUrl
       if (instagramHtml.includes(attestUrl.replace(/&.*/g, '')))
       {
@@ -215,6 +220,37 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       } else {
         console.warn(`Can not find link ${attestUrl} in user biography`)
         throw new AttestationError(`Can not find link ${attestUrl} in user biography`)
+      }
+    } else {
+      throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
+    }
+  }
+  else if (site == PINTEREST_SITE) {
+    const response = await fetch(referralUrl)
+    logger.info("fetching referralUrl:", referralUrl)
+
+    if (response.ok) {
+      const $ = cheerio.load(await response.text())
+
+      const pinnerUrl = $('meta[name="pinterestapp:pinner"]').attr('content')
+      const seeAlso = $('meta[name="og:see_also"]').attr('content')
+
+      const matchResult = /^https:\/\/www\.pinterest\.com\/(.*)\//g.exec(pinnerUrl)
+      if (!matchResult || matchResult.length !== 2) {
+        console.warn(`Invalid pinterest account link: ${pinnerUrl}`)
+        throw new AttestationError(`Invalid pinterest account link: ${pinnerUrl}`)
+      }
+
+      const account = matchResult[1]
+      const accountUrl = `https://www.pinterest.com/${account}/`
+      const sanitizedUrl = accountUrl
+
+      if (seeAlso === attestUrl)
+      {
+        return {site, account, accountUrl, sanitizedUrl}
+      } else {
+        console.warn(`Can not find link ${attestUrl} in supplied pin`)
+        throw new AttestationError(`Can not find link ${attestUrl} in supplied pin`)
       }
     } else {
       throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
