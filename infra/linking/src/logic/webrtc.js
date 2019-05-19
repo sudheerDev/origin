@@ -55,7 +55,7 @@ class WebrtcSub {
       }
     })
 
-    this.msgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss]
+    this.msgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss, this.handleCollected]
 
     this.setUserInfo()
     this.getPendingOffers()
@@ -104,9 +104,9 @@ class WebrtcSub {
 
   onServerMessage(handler) {
     this.redisSub.on('message', (channel, msg) => {
-      const {from, subscribe, updated, rejected} = JSON.parse(msg)
+      const {from, subscribe, updated, rejected, collected} = JSON.parse(msg)
       const { offer, accept } = subscribe || {}
-      if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept || rejected)
+      if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept || rejected || collected)
       {
         logger.info("sending message to client:", msg)
         try {
@@ -264,6 +264,25 @@ class WebrtcSub {
       return true
     }
   }
+
+  handleCollected({collected}) {
+    if (collected) {
+      (async () => {
+        const {listingID, offerID} = collected.offer
+        const offer = await this.logic.getOffer(listingID, offerID)
+
+        if (!offer.active && offer.to == this.subscriberEthAddress)
+        {
+          if (offer.lastVoucher || this.logic.isOfferAccepted(offer))
+          {
+            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, collected:{listingID, offerID}})
+          }
+        }
+      })()
+      return true
+    }
+  }
+
 
   handleDismiss({dismiss}) {
     if (dismiss) {
