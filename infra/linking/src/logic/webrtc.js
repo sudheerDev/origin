@@ -448,7 +448,7 @@ export default class Webrtc {
 
   async getActiveAddresses() {
     const onlineActives = Object.keys(this.activeAddresses)
-    const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({ where: { active:true } })
+    const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({ where: { active:true }, order:[['lastOnline', 'DESC']] })
 
     for (const notify of activeNotifcations) {
       if (!onlineActives.includes(notify.ethAddress))
