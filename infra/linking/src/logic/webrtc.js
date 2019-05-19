@@ -481,23 +481,28 @@ export default class Webrtc {
     }
 
     if (userInfo && userInfo.info.attests) {
-      const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
-      const attests = userInfo.info.attests
-      for (const attest of attests.slice()) {
-        attest.verified = false
-        for(const attested of attestedSites) {
-          if (attested.accountUrl == attest.accountUrl 
-            && attested.site == attest.site 
-            && attested.account == attest.account)
-          {
-            attest.verified = true
-            if(attested.info) {
-              attest.info = attested.info
+      try {
+        const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
+        const attests = userInfo.info.attests
+        for (const attest of attests.slice()) {
+          attest.verified = false
+          for(const attested of attestedSites) {
+            if (attested.accountUrl == attest.accountUrl 
+              && attested.site == attest.site 
+              && attested.account == attest.account)
+            {
+              attest.verified = true
+              if(attested.info) {
+                attest.info = attested.info
+              }
             }
           }
         }
+        info.attests = attests.filter(a => a.verified)
+      } catch (error) {
+        console.log("ERROR verifying attests:", error)
+        info.attests = []
       }
-      info.attests = attests.filter(a => a.verified)
     }
     info.active = ethAddress in this.activeAddresses
     return info
