@@ -678,7 +678,7 @@ export default class Webrtc {
     const fullId = getFullId(listingID, offerID)
     const contractOffer = filterObject(await this.contract.methods.offers(listingID, offerID).call())
 
-    if (!contractOffer){
+    if (!contractOffer || (contractOffer.status == '0' && contractOffer.buyer == emptyAddress)){
       const dbOffer = await db.WebrtcOffer.findOne({ where: {fullId}})
       dbOffer.active = false
       await dbOffer.save()
@@ -692,10 +692,7 @@ export default class Webrtc {
       to = undefined
     }
 
-    let from = contractOffer.buyer
-    if (from == emptyAddress) {
-      from = undefined
-    }
+    const from = contractOffer.buyer
 
     // grab info if available...
     let initInfo
