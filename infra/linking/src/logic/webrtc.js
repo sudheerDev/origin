@@ -273,10 +273,7 @@ class WebrtcSub {
 
         if (!offer.active && offer.to == this.subscriberEthAddress)
         {
-          if (offer.lastVoucher || this.logic.isOfferAccepted(offer))
-          {
-            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, collected:{listingID, offerID}})
-          }
+          this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, collected:{listingID, offerID}})
         }
       })()
       return true
