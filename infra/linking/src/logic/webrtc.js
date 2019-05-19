@@ -250,7 +250,12 @@ class WebrtcSub {
 
         if (offer.active && offer.to == this.subscriberEthAddress)
         {
-          offer.rejected = true
+          if (offer.lastVoucher || this.logic.isOfferAccepted(offer))
+          {
+            offer.toNewMsg = false
+          } else {
+            offer.rejected = true
+          }
           await offer.save()
           this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, {offer:{listingID, offerID}})
           this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{listingID, offerID}})
