@@ -270,6 +270,7 @@ class WebrtcSub {
       (async () => {
         const {listingID, offerID} = collected.offer
         const offer = await this.logic.getOffer(listingID, offerID)
+        console.log("collecting offer:", offer)
 
         if (!offer.active && offer.to == this.subscriberEthAddress)
         {
@@ -691,6 +692,11 @@ export default class Webrtc {
       to = undefined
     }
 
+    let from = contractOffer.buyer
+    if (from == emptyAddress) {
+      from = undefined
+    }
+
     // grab info if available...
     let initInfo
     if (transactionHash && blockNumber) {
@@ -731,7 +737,7 @@ export default class Webrtc {
     contractOffer.totalValue = web3.utils.toBN(contractOffer.value).sub(web3.utils.toBN(contractOffer.refund)).toString()
 
     const offer = {
-      from : contractOffer.buyer,
+      from,
       to,
       fullId,
       amount : web3.utils.fromWei( contractOffer.totalValue ),
