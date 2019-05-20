@@ -210,9 +210,6 @@ class Linker {
         this.firebaseMessaging
       ) {
         // Message: https://firebase.google.com/docs/reference/admin/node/admin.messaging.Message
-        if (typeof data == 'object'){
-          data = JSON.stringify(data)
-        }
         const message = {
           android: {
             priority: 'high',

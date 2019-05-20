@@ -185,12 +185,12 @@ class WebrtcSub {
           {
             if (!offer.lastNotify || (offer.fromNewMsg || (new Date() - offer.lastNotify) > 1000 * 60* 60* 3)) {
               if (offer.lastVoucher) {
-                this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {offer})
+                this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
               } else {
                 if (this.logic.isOfferAccepted(offer)) {
-                  this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is ready to start your conversation.`, {offer})
+                  this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is ready to start your conversation.`, {listingID, offerID})
                 } else {
-                  this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {offer})
+                  this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {listingID, offerID})
                 }
               }
               offer.lastNotify = new Date()
@@ -221,9 +221,9 @@ class WebrtcSub {
             && this.logic.isOfferAccepted(offer))
           {
             if (offer.lastVoucher) {
-              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {offer})
+              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
             } else {
-              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invtation to talk.`, {offer})
+              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invtation to talk.`, {listingID, offerID})
             }
 
             //we already read this offer
@@ -257,7 +257,7 @@ class WebrtcSub {
             offer.rejected = true
           }
           await offer.save()
-          this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, {offer:{listingID, offerID}})
+          this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, {listingID, offerID})
           this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{listingID, offerID}})
         }
       })()
