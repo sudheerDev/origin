@@ -218,11 +218,11 @@ class Linker {
             }
           },
           notification: {
-            title: 'Origin notficiation', // TODO: Better verbiage?
-            body: msg
+            title: 'Chai notficiation', // TODO: this should probably be some config value
+            body: msg,
+            sound: 'default',
           },
           data: data,
-          sound: 'default',
           token: notify.deviceToken
         }
 
