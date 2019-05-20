@@ -222,6 +222,7 @@ class Linker {
             body: msg
           },
           data: data,
+          sound: 'default',
           token: notify.deviceToken
         }
 
