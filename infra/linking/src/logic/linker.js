@@ -214,13 +214,13 @@ class Linker {
           android: {
             priority: 'high',
             notification: {
-              channelId: 'Dapp'
+              channelId: 'chai',
+              sound: 'default'
             }
           },
           notification: {
             title: 'Chai notficiation', // TODO: this should probably be some config value
             body: msg,
-            sound: 'default',
           },
           data: data,
           token: notify.deviceToken
