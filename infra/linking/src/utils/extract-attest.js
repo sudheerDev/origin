@@ -26,7 +26,10 @@ function matchDomains(host, domains) {
   for (const domain of domains) {
     logger.info("matching:", domain, " vs ", ihost)
     //either it is the domain or it's a subdomain
-    return ihost == domain || (ihost.endsWith(domain) && ihost[ihost.length - domain.length -1] == '.')
+    if (ihost == domain || (ihost.endsWith(domain) && ihost[ihost.length - domain.length -1] == '.'))
+    {
+      return true
+    }
   }
 }
 
