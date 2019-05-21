@@ -4,6 +4,7 @@ import db from './../models/'
 import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
 import createHtml from './../utils/static-web'
 import querystring from 'querystring'
+import _ from 'lodash'
 
 import AttestationError from 'utils/attestation-error'
 import logger from 'logger'
@@ -422,6 +423,7 @@ class WebrtcSub {
     for (const peer of this.peers) {
       this.removePeer(peer)
     }
+    this.redisSub.removeAllListeners()
     await this.redisSub.quit()
     this.removeActive()
   }
@@ -677,11 +679,27 @@ export default class Webrtc {
   async getOffer(listingID, offerID, transactionHash, blockNumber) {
     const fullId = getFullId(listingID, offerID)
     const contractOffer = filterObject(await this.contract.methods.offers(listingID, offerID).call())
+    const dbOffer = await db.WebrtcOffer.findOne({ where: {fullId}})
 
     if (!contractOffer || (contractOffer.status == '0' && contractOffer.buyer == emptyAddress)){
-      const dbOffer = await db.WebrtcOffer.findOne({ where: {fullId}})
+      if (!dbOffer){
+        return null
+      }
+
+      if (!dbOffer.active)
+      {
+        return dbOffer
+      }
+
       dbOffer.active = false
       await dbOffer.save()
+      return dbOffer
+    }
+
+    contractOffer.totalValue = web3.utils.toBN(contractOffer.value).sub(web3.utils.toBN(contractOffer.refund)).toString()
+
+    if (_.isEqual(contractOffer, dbOffer.contractOffer) && !(transactionHash && blockNumber))
+    {
       return dbOffer
     }
 
@@ -731,7 +749,6 @@ export default class Webrtc {
       }
     }
 
-    contractOffer.totalValue = web3.utils.toBN(contractOffer.value).sub(web3.utils.toBN(contractOffer.refund)).toString()
 
     const offer = {
       from,
