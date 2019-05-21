@@ -3,6 +3,7 @@ import origin, { web3 } from './../services/origin'
 import db from './../models/'
 import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
 import createHtml from './../utils/static-web'
+import { getEthToUSDRate } from './../utils/currency'
 import querystring from 'querystring'
 import _ from 'lodash'
 
@@ -698,7 +699,7 @@ export default class Webrtc {
 
     contractOffer.totalValue = web3.utils.toBN(contractOffer.value).sub(web3.utils.toBN(contractOffer.refund)).toString()
 
-    if (_.isEqual(contractOffer, dbOffer.contractOffer) && !(transactionHash && blockNumber))
+    if (dbOffer && _.isEqual(contractOffer, dbOffer.contractOffer) && !(transactionHash && blockNumber))
     {
       return dbOffer
     }
@@ -767,8 +768,33 @@ export default class Webrtc {
   async sendNotificationMessage(ethAddress, msg, data) {
     const notifees = await db.WebrtcNotificationEndpoint.findAll({ where: { ethAddress, active:true } })
     for (const notify of notifees) {
-      this.linker.sendNotify(notify, msg, data)
+      try {
+        this.linker.sendNotify(notify, msg, data)
+      } catch (error) {
+        logger.info("Error sending notification:", notify, error)
+      }
     }
+  }
+
+  async getEthToUsdRate() {
+    const KEY = "ethcam.ETHtoUSD"
+    let rate = await new Promise((resolve, reject) => {
+      this.redis.get(KEY, (err, res)=> {
+        if (err) {
+          resolve(null)
+        }
+        resolve(res)
+      })
+    })
+
+    if (rate) {
+      return Number(rate)
+    }
+
+    rate = await getEthToUSDRate()
+
+    this.redis.set(KEY, rate.toString(), 'EX', 30);
+    return rate
   }
 
   isOfferAccepted(offer) {
@@ -806,16 +832,20 @@ export default class Webrtc {
     const keywords = "video, chat, ethereum, facetoface"
     if (accountAddress && accountAddress.startsWith("0x"))
     {
+      const rate = await this.getEthToUsdRate()
       const account = await this.getUserInfo(accountAddress)
-      const title = account.name || accountAddress
+
+      const minUsdCost = Number(account.minCost) * rate
+      const title = account.name || accountAddress + ` is available for a chai for ${account.minCost} ETH($${minUsdCost})`
       const description = account.description || ""
       const url = this.linker.getDappUrl() + "?p=" + accountAddress
       const imageUrl = account.icon && this.getIpfsUrl(account.icon)
 
       // map in the iconSource
-      if( imageUrl) {
+      if( imageUrl ) {
         account.iconSource = {uri:imageUrl}
       }
+      account.minUsdCost = minUsdCost
       return createHtml({title, description, url, imageUrl}, {account}, BUNDLE_PATH)
     } else {
       const title = "How much is a shared moment worth?"

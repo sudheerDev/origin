@@ -393,9 +393,10 @@ router.get('/webrtc-attests/:accountAddress', async (req, res) => {
   }
 })
 
-router.get('/webrtc-static', async (req, res) => {
+router.get('/webrtc-static/:pathAddress?', async (req, res) => {
+  const { pathAddress } = req.params
   const accountAddress = req.query.p
-  res.send(await webrtc.getPage(accountAddress))
+  res.send(await webrtc.getPage(pathAddress||accountAddress))
 })
 
 
