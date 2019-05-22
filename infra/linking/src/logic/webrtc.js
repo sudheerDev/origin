@@ -60,7 +60,7 @@ class WebrtcSub {
     this.msgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss, this.handleCollected]
 
     this.setUserInfo()
-    this.getPendingOffers()
+    this.getPendingOffers({ignoreBlockchain:true})
   }
 
   setActive() {
@@ -807,20 +807,22 @@ export default class Webrtc {
   }
 
   async getOffers(ethAddress, options) {
-    const result = []
+    const {ignoreBlockchain} = options
+
     const offers = await db.WebrtcOffer.findAll({where: {
-      ...options,
+      active:true,
       [db.Sequelize.Op.or]: [ {to:ethAddress}, {from:ethAddress} ] }})
-    for (const offer of offers) {
-      const {listingID, offerID} = splitFullId(offer.fullId)
-      //update the id from the blockchain hopefully it's still active
-      const updatedOffer = await this.getOffer(listingID, offerID, undefined, undefined, offer)
-      if (updatedOffer.active)
-      {
-        result.push(updatedOffer.get({plain:true}))
-      }
+
+    if (ignoreBlockchain) {
+      return offers.map(o => o.get({plain:true}))
+    } else {
+      const updatedOffers = await Promise.all(offers.map(o => {
+        const {listingID, offerID} = splitFullId(o.fullId)
+        return this.getOffer(listingID, offerID, undefined, undefined, o)
+      }))
+
+      return updatedOffers.map(o=> o.get({plain:true}))
     }
-    return result
   }
 
   getIpfsUrl(hash) {
