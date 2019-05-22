@@ -185,7 +185,7 @@ class WebrtcSub {
             && offer.from == this.subscriberEthAddress && (!offer.to || offer.to == ethAddress) &&
             (web3.utils.toBN(offer.contractOffer.totalValue).gte(this.getMinCost) || this.logic.isOfferAccepted(offer)))
           {
-            if (!offer.lastNotify || (offer.fromNewMsg || (new Date() - offer.lastNotify) > 1000 * 60* 60* 3)) {
+            if (!offer.lastNotify || (offer.fromNewMsg || (new Date() - offer.lastNotify) > 1000 * 60* 30)) {
               if (offer.lastVoucher) {
                 this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
               } else {
