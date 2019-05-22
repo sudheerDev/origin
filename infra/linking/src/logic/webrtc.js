@@ -677,10 +677,10 @@ export default class Webrtc {
     )
   }
 
-  async getOffer(listingID, offerID, transactionHash, blockNumber) {
+  async getOffer(listingID, offerID, transactionHash, blockNumber, _dbOffer) {
     const fullId = getFullId(listingID, offerID)
     const contractOffer = filterObject(await this.contract.methods.offers(listingID, offerID).call())
-    const dbOffer = await db.WebrtcOffer.findOne({ where: {fullId}})
+    const dbOffer = _dbOffer || await db.WebrtcOffer.findOne({ where: {fullId}})
 
     if (!contractOffer || (contractOffer.status == '0' && contractOffer.buyer == emptyAddress)){
       if (!dbOffer){
@@ -814,7 +814,7 @@ export default class Webrtc {
     for (const offer of offers) {
       const {listingID, offerID} = splitFullId(offer.fullId)
       //update the id from the blockchain hopefully it's still active
-      const updatedOffer = await this.getOffer(listingID, offerID)
+      const updatedOffer = await this.getOffer(listingID, offerID, undefined, undefined, offer)
       if (updatedOffer.active)
       {
         result.push(updatedOffer.get({plain:true}))
