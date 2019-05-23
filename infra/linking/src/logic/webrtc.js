@@ -4,6 +4,8 @@ import db from './../models/'
 import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
 import createHtml from './../utils/static-web'
 import { getEthToUSDRate } from './../utils/currency'
+import { setTurnCred } from './../utils/turn'
+import { sha3_224 } from 'js-sha3'
 import querystring from 'querystring'
 import _ from 'lodash'
 
@@ -14,6 +16,9 @@ const CHANNEL_PREFIX = "webrtc."
 const CHANNEL_ALL = "webrtcall"
 
 const emptyAddress = '0x0000000000000000000000000000000000000000'
+
+const TURN_KEY = process.env.TURN_KEY
+const TURN_PREFIX = process.env.TURN_PREFIX
 
 function getFullId(listingID, offerID) {
   return `${listingID}-${offerID}`
@@ -170,6 +175,14 @@ class WebrtcSub {
     }
   }
 
+  decorateTurnSubscribe(subscribe, ethAddress, offer) {
+    const pass = sha3_224(`${TURN_KEY}:${ethAddress}:${offer.fullId}`).slice(0, 16)
+    const prefix = TURN_PREFIX
+    setTurnCred(prefix+ethAddress.slice(2), pass)
+    subscribe.turn = {pass, prefix}
+    console.log("--- username:", prefix+ethAddress.slice(2), " pass:", pass)
+  }
+
   handleSubscribe({ethAddress, subscribe}) {
     if (subscribe)
     {
@@ -206,6 +219,7 @@ class WebrtcSub {
             }
 
             this.decorateOffer(subscribe.offer, offer)
+            this.decorateTurnSubscribe(subscribe, ethAddress, offer)
 
             // this is a good offer
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
@@ -235,6 +249,8 @@ class WebrtcSub {
 
             //if we have a voucher from before send it
             this.decorateOffer(subscribe.accept, offer)
+            this.decorateTurnSubscribe(subscribe, ethAddress, offer)
+
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
             this.sendOffer(offer)
           }

@@ -56,7 +56,9 @@
     "sequelize": "^5.0.0-beta.14",
     "sequelize-cli": "^5.4.0",
     "uuid": "^3.3.2",
-    "web3": "1.0.0-beta.34"
+    "web3": "1.0.0-beta.34",
+    "md5": "^2.2.1",
+    "saslprep": "^1.0.3"
   },
   "devDependencies": {
     "chai": "^4.2.0",
