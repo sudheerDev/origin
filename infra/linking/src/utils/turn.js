@@ -3,6 +3,7 @@ import saslprep from 'saslprep'
 import _redis from 'redis'
 
 //require TURN vars
+const _host = process.env.TURN_HOST
 const _key = process.env.TURN_KEY
 const _prefix = process.env.TURN_PREFIX
 const redis_url = process.env.TURN_REDIS_URL

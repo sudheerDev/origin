@@ -19,6 +19,7 @@ const emptyAddress = '0x0000000000000000000000000000000000000000'
 
 const TURN_KEY = process.env.TURN_KEY
 const TURN_PREFIX = process.env.TURN_PREFIX
+const TURN_HOST = process.env.TURN_HOST
 
 function getFullId(listingID, offerID) {
   return `${listingID}-${offerID}`
@@ -62,7 +63,7 @@ class WebrtcSub {
       }
     })
 
-    this.msgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss, this.handleCollected]
+    this.incomingMsgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss, this.handleCollected, this.handleStartSession]
 
     this.setUserInfo()
     this.getPendingOffers({ignoreBlockchain:true})
@@ -105,15 +106,15 @@ class WebrtcSub {
     return web3.utils.toWei((this.userInfo && this.userInfo.minCost) || '0.01')
   }
 
-  publish(channel, data) {
-    this.redis.publish(channel, JSON.stringify(data))
+  publish(channel, data, callback) {
+    this.redis.publish(channel, JSON.stringify(data), callback)
   }
 
   onServerMessage(handler) {
     this.redisSub.on('message', (channel, msg) => {
-      const {from, subscribe, updated, rejected, collected} = JSON.parse(msg)
+      const {from, subscribe, updated, rejected, collected, declined} = JSON.parse(msg)
       const { offer, accept } = subscribe || {}
-      if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept || rejected || collected)
+      if (channel == CHANNEL_ALL || this.peers.includes(from) || offer || accept || rejected || collected || declined)
       {
         logger.info("sending message to client:", msg)
         try {
@@ -156,8 +157,12 @@ class WebrtcSub {
     this.peers = [ethAddress]
   }
 
+  sendMsg(msg) {
+    this.msgHandler(JSON.stringify(msg))
+  }
+
   sendOffer(updatedOffer) {
-    this.msgHandler(JSON.stringify({updatedOffer}))
+    this.sendMsg({updatedOffer})
   }
 
   decorateOffer(e, offer) {
@@ -175,12 +180,11 @@ class WebrtcSub {
     }
   }
 
-  decorateTurnSubscribe(subscribe, ethAddress, offer) {
+  getTurn(ethAddress, offer) {
     const pass = sha3_224(`${TURN_KEY}:${ethAddress}:${offer.fullId}`).slice(0, 16)
     const prefix = TURN_PREFIX
     setTurnCred(prefix+ethAddress.slice(2), pass)
-    subscribe.turn = {pass, prefix}
-    console.log("--- username:", prefix+ethAddress.slice(2), " pass:", pass)
+    return {pass, prefix, host:TURN_HOST}
   }
 
   handleSubscribe({ethAddress, subscribe}) {
@@ -198,6 +202,7 @@ class WebrtcSub {
             && offer.from == this.subscriberEthAddress && (!offer.to || offer.to == ethAddress) &&
             (web3.utils.toBN(offer.contractOffer.totalValue).gte(this.getMinCost) || this.logic.isOfferAccepted(offer)))
           {
+            console.log("notifying offer...", ethAddress)
             if (!offer.lastNotify || (offer.fromNewMsg || (new Date() - offer.lastNotify) > 1000 * 60* 30)) {
               if (offer.lastVoucher) {
                 this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
@@ -219,7 +224,7 @@ class WebrtcSub {
             }
 
             this.decorateOffer(subscribe.offer, offer)
-            this.decorateTurnSubscribe(subscribe, ethAddress, offer)
+            subscribe.turn = this.getTurn(ethAddress, offer)
 
             // this is a good offer
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
@@ -249,7 +254,7 @@ class WebrtcSub {
 
             //if we have a voucher from before send it
             this.decorateOffer(subscribe.accept, offer)
-            this.decorateTurnSubscribe(subscribe, ethAddress, offer)
+            subscribe.turn = this.getTurn(ethAddress, offer)
 
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
             this.sendOffer(offer)
@@ -264,19 +269,33 @@ class WebrtcSub {
     if (reject) {
       (async () => {
         const {listingID, offerID} = reject.offer
-        const offer = await this.logic.getOffer(listingID, offerID)
+        const offer = await this.logic.getDbOffer(listingID, offerID)
+        if (!offer.active)
+        {
+          //do nothing
+          return
+        }
 
-        if (offer.active && offer.to == this.subscriberEthAddress)
+        if (offer.to == this.subscriberEthAddress)
         {
           if (offer.lastVoucher || this.logic.isOfferAccepted(offer))
           {
             offer.toNewMsg = false
+            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, declined:{offer: {listingID, offerID}}})
+            this.logic.sendNotificationMessage(offer.from, `${this.getName()} has declined the conversation for now.`, {listingID, offerID})
           } else {
             offer.rejected = true
+            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{offer: {listingID, offerID}}})
+            this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, {listingID, offerID})
           }
           await offer.save()
-          this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, {listingID, offerID})
-          this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{listingID, offerID}})
+        } 
+        else if (offer.from == this.subscriberEthAddress)
+        {
+          offer.fromNewMsg = false
+          this.publish(CHANNEL_PREFIX + offer.to, {from:this.subscriberEthAddress, declined:{offer: {listingID, offerID}}})
+          await offer.save()
+          this.logic.sendNotificationMessage(offer.to, `${this.getName()} has declined the conversation for now.`, {listingID, offerID})
         }
       })()
       return true
@@ -292,19 +311,18 @@ class WebrtcSub {
 
         if (!offer.active && offer.to == this.subscriberEthAddress)
         {
-          this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, collected:{listingID, offerID}})
+          this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, collected:{offer:{listingID, offerID}}})
         }
       })()
       return true
     }
   }
 
-
   handleDismiss({dismiss}) {
     if (dismiss) {
       (async () => {
         const {listingID, offerID} = dismiss.offer
-        const offer = await this.logic.getOffer(listingID, offerID)
+        const offer = await this.logic.getDbOffer(listingID, offerID)
 
         if (offer.active && offer.from == this.subscriberEthAddress)
         {
@@ -320,7 +338,7 @@ class WebrtcSub {
     if(read) {
       (async () => {
         const {listingID, offerID} = read.offer
-        const offer = await this.logic.getOffer(listingID, offerID)
+        const offer = await this.logic.getDbOffer(listingID, offerID)
 
         if (offer.active)
         {
@@ -334,6 +352,20 @@ class WebrtcSub {
           }
         }
           
+      })()
+      return true
+    }
+  }
+
+  handleStartSession({startSession}) {
+    if(startSession) {
+      (async () => {
+        const {listingID, offerID} = startSession.offer
+        const offer = await this.logic.getDbOffer(listingID, offerID)
+        if(offer.from == this.subscriberEthAddress && 
+          offer.active && this.logic.isOfferAccepted(offer) && offer.fromNewMsg) {
+          await offer.update({toNewMsg:true}) // let the other guy know we've started as well, this should both be now true
+        }
       })()
       return true
     }
@@ -423,13 +455,13 @@ class WebrtcSub {
 
   async getPendingOffers(options) {
     const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, options)
-    this.msgHandler(JSON.stringify({pendingOffers}))
+    this.sendMsg({pendingOffers})
   }
 
 
   clientMessage(msgObj) {
     logger.info("We have a message from the client:", msgObj)
-    for (const handler of this.msgHandlers) {
+    for (const handler of this.incomingMsgHandlers) {
       if (handler.call(this, msgObj) ) {
         return
       }
@@ -661,13 +693,13 @@ export default class Webrtc {
       const recoveredAddress = await this.hot.recoverFinalize(listingID, offerID, ipfsHash, payout, fee, signature)
       if (recoveredAddress == offer.contractOffer.verifier)
       {
-        await offer.update({lastVoucher:voucher, fromNewMsg:true, toNewMsg:true})
+        await offer.update({lastVoucher:voucher})
         return true
       }
 
       if(recoveredAddress == this.hot.account.address && (recoveredAddress == offer.seller || recoveredAddress == offer.initInfo.offerTerms.sideVerifier)) 
       {
-        await offer.update({lastVoucher:voucher, fromNewMsg:true, toNewMsg:true})
+        await offer.update({lastVoucher:voucher})
         return true
       }
     }
@@ -691,6 +723,11 @@ export default class Webrtc {
     return this.hot.submitMarketplace('verifiedOnBehalfFinalize',
         [listingID, offerID, ipfsHash, behalfFee, fee, payout, sellerSig.v, sellerSig.r, sellerSig.s, sig.v, sig.r, sig.s]
     )
+  }
+
+  async getDbOffer(listingID, offerID) {
+    const fullId = getFullId(listingID, offerID)
+    return await db.WebrtcOffer.findOne({ where: {fullId}})
   }
 
   async getOffer(listingID, offerID, transactionHash, blockNumber, _dbOffer) {

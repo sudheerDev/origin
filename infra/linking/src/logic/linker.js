@@ -18,7 +18,7 @@ import * as firebase from 'firebase-admin' // AKA "admin"
 const ATTESTATION_ACCOUNT = process.env.ATTESTATION_ACCOUNT
 const DAPP_URL = `${process.env.DAPP_URL}`
 
-const API_VERSION = "0.2"
+const API_VERSION = "0.3"
 
 /*
  * Deprecated but needed to support older versions of Origin Wallet
