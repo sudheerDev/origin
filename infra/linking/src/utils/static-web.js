@@ -8,13 +8,16 @@ const HTML = (metas, title, state, bundlePath = '/' ) => `<!DOCTYPE html>
 <html style="height: 100%; width: 100%;">
   <head>
     <title>${title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     ${toMetaTags(metas)}
+    <link href="https://fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
   </head>
   <script>
     window.globalState=${JSON.stringify(state).replace(/</g, "\\u003c")};
   </script>
-  <body style="display: flex; height: 100%; margin: 0; width: 100%;">
-    <div id="app" style="display: flex; flex: 1;"></div>
+
+  <body style="height: 100%; margin: 0; width: 100%;">
+    <div id="app"></div>
     <script src="${bundlePath}bundle.js"></script>
   </body>
 </html>`
