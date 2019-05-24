@@ -63,7 +63,9 @@ class WebrtcSub {
       }
     })
 
-    this.incomingMsgHandlers = [this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, this.handleDismiss, this.handleCollected, this.handleStartSession]
+    this.incomingMsgHandlers = [this.handleApiVersion, this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, 
+      this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, 
+      this.handleDismiss, this.handleCollected, this.handleStartSession]
 
     this.setUserInfo()
     this.getPendingOffers({ignoreBlockchain:true})
@@ -187,6 +189,17 @@ class WebrtcSub {
     return {pass, prefix, host:TURN_HOST}
   }
 
+
+  handleApiVersion({apiVersion}) {
+    if (apiVersion) {
+      const version = this.logic.linker.apiVersion
+      if (Number(apiVersion) < Number(version)){
+        this.sendMsg({updateRequired:{version}})
+      }
+      return true
+    }
+  }
+
   handleSubscribe({ethAddress, subscribe}) {
     if (subscribe)
     {
@@ -244,7 +257,7 @@ class WebrtcSub {
             if (offer.lastVoucher) {
               this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
             } else {
-              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invtation to talk.`, {listingID, offerID})
+              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invitation to talk.`, {listingID, offerID})
             }
 
             //we already read this offer
@@ -301,6 +314,7 @@ class WebrtcSub {
       return true
     }
   }
+
 
   handleCollected({collected}) {
     if (collected) {
@@ -601,8 +615,13 @@ export default class Webrtc {
 
   async registerReferral(ethAddress, attestUrl, referralUrl, res) {
     const a = new URL(attestUrl)
+    const paths = a.pathname.split("/")
     const query = querystring.parse(a.search.substring(1))
-    if (!(query.p == ethAddress && "attest" in query))
+    let passedAddress = query.p
+    if (paths[paths.length -2] == 'profile' || paths[paths.length -2] == 'p'){
+      passedAddress = paths[paths.length -1]
+    }
+    if (!(passedAddress == ethAddress && "attest" in query))
     {
       // TODO:need to make sure domain matches as well! 
       // a.host  == some config value

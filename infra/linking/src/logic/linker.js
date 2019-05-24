@@ -18,7 +18,7 @@ import * as firebase from 'firebase-admin' // AKA "admin"
 const ATTESTATION_ACCOUNT = process.env.ATTESTATION_ACCOUNT
 const DAPP_URL = `${process.env.DAPP_URL}`
 
-const API_VERSION = "0.3"
+const API_VERSION = "0.4"
 
 /*
  * Deprecated but needed to support older versions of Origin Wallet
@@ -34,6 +34,7 @@ const FIREBASE_DB_URL =
 class Linker {
   constructor() {
     this.messages = new MessageQueue()
+    this.apiVersion = API_VERSION
 
     if (process.env.APNS_KEY_FILE) {
       this.apnProvider = new apn.Provider({
