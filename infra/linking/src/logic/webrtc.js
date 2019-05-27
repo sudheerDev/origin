@@ -268,7 +268,7 @@ class WebrtcSub {
     }
     const existingCall = await this.getRedis(key)
     if (existingCall && existingCall != callId) {
-      this.sendMsg({from:ethAddress, declined:{offer, callId, exisitingCall}})
+      this.sendMsg({from:ethAddress, declined:{offer, callId, existingCall}})
       return false
     }
 
