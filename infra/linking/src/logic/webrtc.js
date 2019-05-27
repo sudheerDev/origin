@@ -339,7 +339,10 @@ class WebrtcSub {
             } else if (!offer.lastNotify || (new Date() - offer.lastNotify) > 1000 * 60* 60 && !accepted) {
               this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {listingID, offerID})
               offer.lastNotify = new Date()
-            } 
+            } else {
+              console.log("Limit for sending offers sent.")
+              return
+            }
             offer.fromNewMsg = false
             offer.toNewMsg = true
             offer.save()
@@ -376,7 +379,10 @@ class WebrtcSub {
                 return
               }
               offer.lastFromNotify = new Date()
-            } 
+            } else {
+              console.log("Call id required for accept.")
+              return
+            }
 
             //we already read this offer
             offer.fromNewMsg = true
