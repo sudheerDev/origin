@@ -21,6 +21,15 @@ const TURN_KEY = process.env.TURN_KEY
 const TURN_PREFIX = process.env.TURN_PREFIX
 const TURN_HOST = process.env.TURN_HOST
 
+const CALL_STARTED = 'started'
+const CALL_DECLINED = 'declined'
+const CALL_ENDED = 'ended'
+
+const CALL_COUNT_PREFIX = 'count.'
+const CALL_DECLINE_PREFIX = "decline."
+
+const DECLINE_SECONDS = 5* 60 //decline lasts for 60 seconds
+
 function getFullId(listingID, offerID) {
   return `${listingID}-${offerID}`
 }
@@ -200,6 +209,106 @@ class WebrtcSub {
     }
   }
 
+  getCallKey(to, offer) {
+    return `call.${to}.${offer.listingID}.${offer.offerID}`
+  }
+
+  async getRedis(key) {
+    return new Promise((resolve, reject) => {
+      this.redis.get(key, (err, reply) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(reply)
+        }
+      })
+    })
+  }
+
+  async incrRedis(key) {
+    return new Promise((resolve, reject) => {
+      this.redis.incr(key, (err, reply) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(Number(reply))
+        }
+      })
+    })
+  }
+
+  async checkDeclined(ethAddress, offer) {
+    const declineCheckKey = CALL_DECLINE_PREFIX + this.getCallKey(ethAddress, offer)
+    return this.getRedis(declineCheckKey)
+  }
+
+  clearDeclined(offer) {
+    const declineCheckKey = CALL_DECLINE_PREFIX + this.getCallKey(this.subscriberEthAddress, offer)
+    this.redis.del(declineCheckKey)
+  }
+
+  setDecline(offer) {
+    const declineCheckKey = CALL_DECLINE_PREFIX + this.getCallKey(this.subscriberEthAddress, offer)
+    this.redis.set(declineCheckKey, '1', 'EX', 300) // decline for 5 minutes
+  }
+
+  async getExistingCall(offer) {
+    const key = this.getCallKey(this.subscriberEthAddress, offer)
+    return await this.getRedis(key)
+  }
+
+  async sendCallRequest(ethAddress, offer, callId) {
+    const {listingID, offerID} = offer
+    const key = this.getCallKey(ethAddress, offer)
+
+    const declined = await this.checkDeclined(ethAddress, offer)
+    if (declined) {
+      this.sendMsg({from:ethAddress, declined:{offer, callId}})
+      return false
+    }
+    const existingCall = await this.getRedis(key)
+    if (existingCall && existingCall != callId) {
+      this.sendMsg({from:ethAddress, declined:{offer, callId, exisitingCall}})
+      return false
+    }
+
+    const expKey = `exp.${this.subscriberEthAddress}.${callId}`
+    const dateStr = await this.getRedis(expKey)
+
+    if (!dateStr) {
+      const countKey = CALL_COUNT_PREFIX + key
+      const count = Number((await this.getRedis(countKey)))
+      if (count > 3) {
+        this.sendMsg({from:ethAddress, declined:{offer, callId, maxCalls:count}})
+        return false
+      }
+      // this is a brand new call
+      this.redis.incr(countKey)
+      this.redis.expire(countKey, 1800)
+      // clear incoming calls for me, since I'm expecting an answer from the caller
+      this.redis.del(CALL_COUNT_PREFIX + this.getCallKey(this.subscriberEthAddress, offer))
+
+      //This should be set to the correct time
+      this.redis.set(expKey, new Date().toISOString(), 'EX', 24* 60 * 60) // call attempts last for a day
+    } else if ((new Date() - new Date(dateStr)) > 35 * 1000) { // you can only ring someone for 35 seconds
+      this.sendMsg({from:ethAddress, declined:{offer, callId, expired:true}})
+      return false
+    } 
+    //clear the decline for the offer if I had any.
+    this.clearDeclined(offer)
+
+    this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is calling you.`, {listingID, offerID, callId}, callId)
+    this.redis.set(key, callId, 'EX', 5)
+    setTimeout(() => {
+      this.redis.get(key, (err, reply) => {
+        if (reply != callId) {
+          this.logic.sendNotificationMessage(ethAddress, `Missed chai call from ${this.getName()}`, {listingID, offerID, callId}, callId, true)
+        }
+      })
+    }, 5500) //after six seconds if that value is still there well then it's probably ended
+    return true
+  }
+
   handleSubscribe({ethAddress, subscribe}) {
     if (subscribe)
     {
@@ -207,46 +316,48 @@ class WebrtcSub {
         const {offer, accept} = subscribe
         if (offer) {
           const { listingID, offerID, transactionHash, blockNumber } = subscribe.offer
-          const offer = await this.logic.getOffer(listingID, offerID, transactionHash, blockNumber )
-          logger.info("Offer is:", offer)
+          const offer = await this.logic.getOffer(listingID, offerID, transactionHash, blockNumber)
+
+          if (!subscribe.callId) {
+            logger.info("Offer is:", offer)
+          }
+          const accepted = this.logic.isOfferAccepted(offer)
 
           // TODO: we need a price on this offer so need to load up profiles here as well
           if (offer && offer.active && !offer.rejected
             && offer.from == this.subscriberEthAddress && (!offer.to || offer.to == ethAddress) &&
-            (web3.utils.toBN(offer.contractOffer.totalValue).gte(this.getMinCost) || this.logic.isOfferAccepted(offer)))
+            (web3.utils.toBN(offer.contractOffer.totalValue).gte(this.getMinCost) || accepted))
           {
-            console.log("notifying offer...", ethAddress)
-            if (!offer.lastNotify || (offer.fromNewMsg || (new Date() - offer.lastNotify) > 1000 * 60* 30)) {
-              if (offer.lastVoucher) {
-                this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
-              } else {
-                if (this.logic.isOfferAccepted(offer)) {
-                  this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is ready to start your conversation.`, {listingID, offerID})
-                } else {
-                  this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {listingID, offerID})
-                }
+            if (subscribe.callId && accepted) {
+              // you can only call into accepted offers
+              //
+              if (!(await this.sendCallRequest(ethAddress, {listingID, offerID}, subscribe.callId))) {
+                // couldn't call for some reason
+                return
               }
               offer.lastNotify = new Date()
-              offer.fromNewMsg = false
-              offer.toNewMsg = true
-              offer.save()
-            } else {
-              offer.fromNewMsg = false
-              offer.toNewMsg = true
-              offer.save()
-            }
+            } else if (!offer.lastNotify || (new Date() - offer.lastNotify) > 1000 * 60* 60 && !accepted) {
+              this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {listingID, offerID})
+              offer.lastNotify = new Date()
+            } 
+            offer.fromNewMsg = false
+            offer.toNewMsg = true
+            offer.save()
 
             this.decorateOffer(subscribe.offer, offer)
             subscribe.turn = this.getTurn(ethAddress, offer)
 
             // this is a good offer
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
-            this.sendOffer(offer)
+            if (transactionHash) {
+              this.sendOffer(offer)
+            }
           }
         } else if (accept) {
           const {
             listingID,
             offerID,
+            transactionHash
           } = subscribe.accept
           const offer = await this.logic.getOffer(listingID, offerID)
 
@@ -254,11 +365,18 @@ class WebrtcSub {
             && (offer.to == this.subscriberEthAddress || !offer.to) && offer.from == ethAddress
             && this.logic.isOfferAccepted(offer))
           {
-            if (offer.lastVoucher) {
-              this.logic.sendNotificationMessage(ethAddress, `${this.getName()} would like to continue your conversation.`, {listingID, offerID})
-            } else {
+            if (transactionHash) {
               this.logic.sendNotificationMessage(ethAddress, `${this.getName()} has accepted your invitation to talk.`, {listingID, offerID})
             }
+
+            if (subscribe.callId) {
+              // you can only call into accepted offers
+              if (!(await this.sendCallRequest(ethAddress, {listingID, offerID}, subscribe.callId))) {
+                // couldn't call for some reason
+                return
+              }
+              offer.lastFromNotify = new Date()
+            } 
 
             //we already read this offer
             offer.fromNewMsg = true
@@ -270,7 +388,9 @@ class WebrtcSub {
             subscribe.turn = this.getTurn(ethAddress, offer)
 
             this.publish(CHANNEL_PREFIX + ethAddress, {from:this.subscriberEthAddress, subscribe})
-            this.sendOffer(offer)
+            if (transactionHash) {
+              this.sendOffer(offer)
+            }
           }
         }
       }) ()
@@ -294,8 +414,7 @@ class WebrtcSub {
           if (offer.lastVoucher || this.logic.isOfferAccepted(offer))
           {
             offer.toNewMsg = false
-            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, declined:{offer: {listingID, offerID}}})
-            this.logic.sendNotificationMessage(offer.from, `${this.getName()} has declined the conversation for now.`, {listingID, offerID})
+            this.setDeclined(offer)
           } else {
             offer.rejected = true
             this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{offer: {listingID, offerID}}})
@@ -306,9 +425,8 @@ class WebrtcSub {
         else if (offer.from == this.subscriberEthAddress)
         {
           offer.fromNewMsg = false
-          this.publish(CHANNEL_PREFIX + offer.to, {from:this.subscriberEthAddress, declined:{offer: {listingID, offerID}}})
           await offer.save()
-          this.logic.sendNotificationMessage(offer.to, `${this.getName()} has declined the conversation for now.`, {listingID, offerID})
+          this.setDecline(offer)
         }
       })()
       return true
@@ -469,6 +587,11 @@ class WebrtcSub {
 
   async getPendingOffers(options) {
     const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, options)
+    await Promise.all(pendingOffers.map(async o => {  
+      if (await this.getExistingCall(o)) {
+        o.incomingCall = true
+      }
+    }))
     this.sendMsg({pendingOffers})
   }
 
@@ -508,7 +631,7 @@ export default class Webrtc {
 
   subscribe(ethAddress, authSignature, message, rules, timestamp, walletToken) {
     logger.info("call subscribing...", ethAddress)
-    if (!(message.includes(rules.join(",")) && message.includes(timestamp))) {
+    if (message && !(message.includes(rules.join(",")) && message.includes(timestamp))) {
       throw new Error("Invalid subscription message sent")
     }
 
@@ -837,11 +960,11 @@ export default class Webrtc {
     return db.WebrtcOffer.findOne({ where: {fullId}})
   }
 
-  async sendNotificationMessage(ethAddress, msg, data) {
+  async sendNotificationMessage(ethAddress, msg, data, collapseId, silent) {
     const notifees = await db.WebrtcNotificationEndpoint.findAll({ where: { ethAddress, active:true } })
     for (const notify of notifees) {
       try {
-        this.linker.sendNotify(notify, msg, data)
+        this.linker.sendNotify(notify, msg, data, collapseId, silent)
       } catch (error) {
         logger.info("Error sending notification:", notify, error)
       }

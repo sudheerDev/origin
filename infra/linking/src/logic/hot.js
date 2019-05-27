@@ -50,6 +50,7 @@ class Hot {
     const options = { from }
     const method = this.contract.methods[cmd](...params)
     options.gas = (options.gas || (await method.estimateGas(options)))
+    console.log("estimated Gas is:", options.gas)
     const transactionReceipt = await new Promise((resolve, reject) => {
       if (this.transactionSigner)
       {

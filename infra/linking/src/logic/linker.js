@@ -193,14 +193,15 @@ class Linker {
     })
   }
 
-  sendNotify(notify, msg, data = {}) {
+  sendNotify(notify, msg, data = {}, collapseId, silent) {
     if (notify) {
       if (notify.deviceType == EthNotificationTypes.APN && this.apnProvider) {
         const note = new apn.Notification({
           alert: msg,
-          sound: 'default',
+          sound: silent? undefined:'default',
           payload: data,
-          topic: this.apnBundle
+          topic: this.apnBundle,
+          collapseId
         })
         this.apnProvider.send(note, notify.deviceToken).then(result => {
           console.log('APNS sent:', result.sent.length)
@@ -213,15 +214,16 @@ class Linker {
         // Message: https://firebase.google.com/docs/reference/admin/node/admin.messaging.Message
         const message = {
           android: {
+            collapseKey: collapseId,
             priority: 'high',
             notification: {
               channelId: 'chai',
-              sound: 'default'
+              sound: silent ? undefined: 'default'
             }
           },
           notification: {
             title: 'Chai notficiation', // TODO: this should probably be some config value
-            body: msg,
+            body: msg
           },
           data: data,
           token: notify.deviceToken

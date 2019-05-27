@@ -17,7 +17,8 @@ module.exports = (sequelize, DataTypes) => {
       rejected: DataTypes.BOOLEAN,
       fromNewMsg:DataTypes.BOOLEAN,
       toNewMsg:DataTypes.BOOLEAN,
-      lastNotify:DataTypes.DATE
+      lastNotify:DataTypes.DATE,
+      lastFromNotify:DataTypes.DATE
     },
     {
       tableName: 'webrtc_offer'
