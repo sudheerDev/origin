@@ -432,7 +432,7 @@ class WebrtcSub {
         {
           offer.fromNewMsg = false
           await offer.save()
-          this.setDecline(offer)
+          this.setDeclined(offer)
         }
       })()
       return true
