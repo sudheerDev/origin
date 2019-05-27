@@ -247,7 +247,7 @@ class WebrtcSub {
     this.redis.del(declineCheckKey)
   }
 
-  setDecline(offer) {
+  setDeclined(offer) {
     const declineCheckKey = CALL_DECLINE_PREFIX + this.getCallKey(this.subscriberEthAddress, offer)
     this.redis.set(declineCheckKey, '1', 'EX', 300) // decline for 5 minutes
   }
