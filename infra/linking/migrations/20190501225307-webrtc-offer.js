@@ -61,6 +61,10 @@ module.exports = {
         last_notify: {
           type: Sequelize.DATE
         },
+        last_from_notify: {
+          type: Sequelize.DATE
+        },
+
         created_at: {
           allowNull: false,
           type: Sequelize.DATE
