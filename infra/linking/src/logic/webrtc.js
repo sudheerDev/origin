@@ -407,7 +407,8 @@ class WebrtcSub {
   handleReject({reject}) {
     if (reject) {
       (async () => {
-        const sendOffer = {listingID, offerID} = reject.offer
+        const {listingID, offerID} = reject.offer
+        const sendOffer = {listingID, offerID}
         const offer = await this.logic.getDbOffer(listingID, offerID)
         if (!offer.active)
         {
