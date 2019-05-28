@@ -407,7 +407,7 @@ class WebrtcSub {
   handleReject({reject}) {
     if (reject) {
       (async () => {
-        const {listingID, offerID} = reject.offer
+        const sendOffer = {listingID, offerID} = reject.offer
         const offer = await this.logic.getDbOffer(listingID, offerID)
         if (!offer.active)
         {
@@ -420,11 +420,11 @@ class WebrtcSub {
           if (offer.lastVoucher || this.logic.isOfferAccepted(offer))
           {
             offer.toNewMsg = false
-            this.setDeclined(offer)
+            this.setDeclined(sendOffer)
           } else {
             offer.rejected = true
-            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{offer: {listingID, offerID}}})
-            this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, {listingID, offerID})
+            this.publish(CHANNEL_PREFIX + offer.from, {from:this.subscriberEthAddress, rejected:{offer: sendOffer}})
+            this.logic.sendNotificationMessage(offer.from, `Your offer to ${this.getName()} has been declined.`, sendOffer)
           }
           await offer.save()
         } 
@@ -432,7 +432,7 @@ class WebrtcSub {
         {
           offer.fromNewMsg = false
           await offer.save()
-          this.setDeclined(offer)
+          this.setDeclined(sendOffer)
         }
       })()
       return true
