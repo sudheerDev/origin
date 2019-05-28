@@ -92,7 +92,12 @@ class ContractService {
   getContractAddresses() {
     const addresses = {}
     for (const name in this.contracts) {
-      addresses[name] = this.contracts[name].networks
+      const networks = this.contracts[name].networks
+      const n = {}
+      for (const k of Object.keys(networks)) {
+        n[k] = {address:networks[k].address}
+      }
+      addresses[name] = n
     }
     return addresses
   }
