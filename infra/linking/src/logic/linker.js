@@ -213,11 +213,11 @@ class Linker {
       ) {
         // Message: https://firebase.google.com/docs/reference/admin/node/admin.messaging.Message
         //
-        const priotiry = collapseId ? 'urgent' : 'high'
+        const priority = collapseId ? 'urgent' : 'high'
         const message = {
           android: {
             collapseKey: collapseId,
-            priority: 'high',
+            priority,
             notification: {
               channelId: 'chai',
               sound: silent ? undefined: 'default'
