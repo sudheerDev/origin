@@ -1040,9 +1040,9 @@ export default class Webrtc {
       const account = await this.getUserInfo(accountAddress)
 
       const minUsdCost = Number(account.minCost) * rate
-      const title = account.name || accountAddress + ` is available for a chai for ${account.minCost} ETH($${minUsdCost})`
+      const title = (account.name || accountAddress) + ` is available for a chai for ${account.minCost} ETH($${minUsdCost})`
       const description = account.description || ""
-      const url = this.linker.getDappUrl() + "?p=" + accountAddress
+      const url = this.linker.getDappUrl() + "profile/" + accountAddress
       const imageUrl = account.icon && this.getIpfsUrl(account.icon)
 
       // map in the iconSource
