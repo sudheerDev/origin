@@ -213,7 +213,10 @@ class Linker {
       ) {
         // Message: https://firebase.google.com/docs/reference/admin/node/admin.messaging.Message
         //
-        const priority = ring ? "max": undefined
+        const safeData = {data:JSON.stringify(data)}
+        if (ring) {
+          safeData.priority = "max"
+        }
         const ttl = ring ? 5: undefined  //ring for 5 seconds 
         const message = {
           android: {
@@ -229,10 +232,7 @@ class Linker {
             title: 'Chai notficiation', // TODO: this should probably be some config value
             body: msg
           },
-          data: {
-            priority,
-            data:JSON.stringify(data)
-            },
+          data: safeData,
           token: notify.deviceToken
         }
 
