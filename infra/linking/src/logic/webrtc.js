@@ -314,11 +314,16 @@ class WebrtcSub {
     this.redis.del(getBlockKey(ethAddress, this.subscriberEthAddress))
   }
 
-  handleBlock({block}){
+  handleBlock({block, unblock}){
     if (block) {
       const key = getBlockKey(block, this.subscriberEthAddress)
       this.redis.set(key, "1")
       logger.info("setting: ", key)
+      return true
+    } else if (unblock) {
+      const key = getBlockKey(unblock, this.subscriberEthAddress)
+      this.redis.del(key)
+      logger.info("clearing: ", key)
       return true
     }
   }
