@@ -15,8 +15,11 @@ module.exports = (sequelize, DataTypes) => {
       tableName: 'webrtc_notification_endpoint'
     }
   )
-  WebrtcNotificationEndpoint.associate = function() {
+  WebrtcNotificationEndpoint.associate = function(models) {
     // associations can be defined here
+    WebrtcNotificationEndpoint.hasOne(models.UserInfo, {
+      foreignKey:'ethAddress', sourceKey:'ethAddress'
+    })
   }
   return WebrtcNotificationEndpoint
 }

@@ -18,7 +18,7 @@ import * as firebase from 'firebase-admin' // AKA "admin"
 const ATTESTATION_ACCOUNT = process.env.ATTESTATION_ACCOUNT
 const DAPP_URL = `${process.env.DAPP_URL}`
 
-const API_VERSION = "0.5"
+const API_VERSION = "0.6"
 
 /*
  * Deprecated but needed to support older versions of Origin Wallet
@@ -193,7 +193,7 @@ class Linker {
     })
   }
 
-  sendNotify(notify, msg, data = {}, collapseId, silent) {
+  sendNotify(notify, msg, data = {}, collapseId, silent, ring) {
     if (notify) {
       if (notify.deviceType == EthNotificationTypes.APN && this.apnProvider) {
         const note = new apn.Notification({
@@ -213,12 +213,15 @@ class Linker {
       ) {
         // Message: https://firebase.google.com/docs/reference/admin/node/admin.messaging.Message
         //
+        const priority = ring ? "max": undefined
+        const ttl = ring ? 5: undefined  //ring for 5 seconds 
         const message = {
           android: {
             collapseKey: collapseId,
             priority: 'high',
+            ttl,
             notification: {
-              channelId: 'chai',
+              //channelId: 'chai',
               sound: silent ? undefined: 'default'
             }
           },
@@ -226,7 +229,10 @@ class Linker {
             title: 'Chai notficiation', // TODO: this should probably be some config value
             body: msg
           },
-          data: data,
+          data: {
+            priority,
+            data:JSON.stringify(data)
+            },
           token: notify.deviceToken
         }
 

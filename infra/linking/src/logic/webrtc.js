@@ -40,6 +40,10 @@ function splitFullId(fullId) {
 
 }
 
+function getBlockKey(fromAddress, toAddress) {
+  return `blocked.${fromAddress}.${toAddress}`
+}
+
 // Objects returned from web3 often have redundant entries with numeric
 // keys, so we filter those out.
 const filterObject = (obj) => {
@@ -74,7 +78,7 @@ class WebrtcSub {
 
     this.incomingMsgHandlers = [this.handleApiVersion, this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, 
       this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, 
-      this.handleDismiss, this.handleCollected, this.handleStartSession]
+      this.handleDismiss, this.handleCollected, this.handleStartSession, this.handleBlock]
 
     this.setUserInfo()
     this.getPendingOffers({ignoreBlockchain:true})
@@ -140,6 +144,8 @@ class WebrtcSub {
     })
     this.msgHandler = handler
   }
+
+
 
   removePeer(ethAddress) {
     if (this.peers.includes(ethAddress)) {
@@ -213,18 +219,7 @@ class WebrtcSub {
     return `call.${to}.${offer.listingID}.${offer.offerID}`
   }
 
-  async getRedis(key) {
-    return new Promise((resolve, reject) => {
-      this.redis.get(key, (err, reply) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(reply)
-        }
-      })
-    })
-  }
-
+  
   async incrRedis(key) {
     return new Promise((resolve, reject) => {
       this.redis.incr(key, (err, reply) => {
@@ -297,7 +292,8 @@ class WebrtcSub {
     //clear the decline for the offer if I had any.
     this.clearDeclined(offer)
 
-    this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is calling you.`, {listingID, offerID, callId}, callId)
+    // send not silent with a TLL and max priority
+    this.logic.sendNotificationMessage(ethAddress, `${this.getName()} is calling you.`, {listingID, offerID, callId}, callId, false, true)
     this.redis.set(key, callId, 'EX', 5)
     setTimeout(() => {
       this.redis.get(key, (err, reply) => {
@@ -309,12 +305,37 @@ class WebrtcSub {
     return true
   }
 
+  async isBlocked(ethAddress) {
+    return this.getRedis(getBlockKey(this.subscriberEthAddress, ethAddress))
+  }
+
+  clearBlock(ethAddress) {
+    //clear the block if it exists
+    this.redis.del(getBlockKey(ethAddress, this.subscriberEthAddress))
+  }
+
+  handleBlock({block}){
+    if (block) {
+      const key = getBlockKey(block, this.subscriberEthAddress)
+      this.redis.set(key, "1")
+      logger.info("setting: ", key)
+      return true
+    }
+  }
+
   handleSubscribe({ethAddress, subscribe}) {
     if (subscribe)
     {
       (async () => {
         const {offer, accept} = subscribe
         if (offer) {
+          //check and clear blocks
+          const blocked = await this.isBlocked(ethAddress)
+          if (blocked) {
+            this.sendMsg({from:ethAddress, rejected:{offer}})
+          }
+          this.clearBlock(ethAddress)
+
           const { listingID, offerID, transactionHash, blockNumber } = subscribe.offer
           const offer = await this.logic.getOffer(listingID, offerID, transactionHash, blockNumber)
 
@@ -340,7 +361,7 @@ class WebrtcSub {
               this.logic.sendNotificationMessage(ethAddress, `You have received an offer to talk for ${offer.amount} ETH from ${this.getName()}.`, {listingID, offerID})
               offer.lastNotify = new Date()
             } else {
-              console.log("Limit for sending offers sent.")
+              logger.info("Limit for sending offers sent.")
               return
             }
             offer.fromNewMsg = false
@@ -362,6 +383,14 @@ class WebrtcSub {
             offerID,
             transactionHash
           } = subscribe.accept
+
+          //check and clear blocks
+          const blocked = await this.isBlocked(ethAddress)
+          if (blocked) {
+            this.sendMsg({from:ethAddress, rejected:{offer: subscribe.accept}})
+          }
+          this.clearBlock(ethAddress)
+
           const offer = await this.logic.getOffer(listingID, offerID)
 
           if (offer && offer.active
@@ -380,7 +409,7 @@ class WebrtcSub {
               }
               offer.lastFromNotify = new Date()
             } else {
-              console.log("Call id required for accept.")
+              logger.info("Call id required for accept.")
               return
             }
 
@@ -446,7 +475,7 @@ class WebrtcSub {
       (async () => {
         const {listingID, offerID} = collected.offer
         const offer = await this.logic.getOffer(listingID, offerID)
-        console.log("collecting offer:", offer)
+        logger.info("collecting offer:", offer)
 
         if (!offer.active && offer.to == this.subscriberEthAddress)
         {
@@ -592,6 +621,10 @@ class WebrtcSub {
     }
   }
 
+  async getRedis(key) {
+    return this.logic.getRedis(key)
+  }
+
   async getPendingOffers(options) {
     const pendingOffers = await this.logic.getOffers(this.subscriberEthAddress, options)
     await Promise.all(pendingOffers.map(async o => {  
@@ -665,7 +698,9 @@ export default class Webrtc {
 
   async getActiveAddresses() {
     const onlineActives = Object.keys(this.activeAddresses)
-    const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({ where: { active:true }, order:[['lastOnline', 'DESC']] })
+    const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
+      include:[ {model:db.UserInfo, required:false} ],
+      where: { active:true, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:50})
 
     for (const notify of activeNotifcations) {
       if (!onlineActives.includes(notify.ethAddress))
@@ -689,15 +724,21 @@ export default class Webrtc {
     return false
   }
 
-  async getUserInfo(ethAddress) {
+  async getUserInfo(ethAddress, watcherAddress) {
+    const data = {}
     let info = {}
     const userInfo = await db.UserInfo.findOne({ where: {ethAddress } })
     if (userInfo)
     {
-      info = userInfo.info
+      if (userInfo.info) {
+        info = userInfo.info
+      }
+      data.banned = userInfo.banned
+      data.flags = userInfo.flags
+      data.blocked = (await this.getRedis(getBlockKey(watcherAddress, ethAddress))) ? true:undefined
     }
 
-    if (userInfo && userInfo.info.attests) {
+    if (userInfo && userInfo.info && userInfo.info.attests) {
       try {
         const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
         const attests = userInfo.info.attests
@@ -721,8 +762,8 @@ export default class Webrtc {
         info.attests = []
       }
     }
-    info.active = ethAddress in this.activeAddresses
-    return info
+    data.active = ethAddress in this.activeAddresses
+    return {data, info}
   }
 
   async getAllAttests(ethAddress) {
@@ -1059,4 +1100,28 @@ export default class Webrtc {
       return createHtml({title, description, url, imageUrl}, {index:true}, BUNDLE_PATH)
     }
   }
+  
+  async flagAddress(ethAddress, flagger, reason, timestamp, signature) {
+    const userInfo = await db.UserInfo.findOne({ where: {ethAddress} })
+
+    this.redis.lpush(`flag.${ethAddress}`, JSON.stringify({flagger, reason, timestamp, signature}))
+    if (!userInfo) {
+      await db.UserInfo.upsert({ethAddress:ethAddress, flags:1})
+    } else {
+      await userInfo.update({flags:userInfo.flags + 1})
+    }
+  }
+
+  async getRedis(key) {
+    return new Promise((resolve, reject) => {
+      this.redis.get(key, (err, reply) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(reply)
+        }
+      })
+    })
+  }
+
 }

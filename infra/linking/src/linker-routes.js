@@ -351,6 +351,18 @@ router.get('/webrtc-addresses', async (req, res) => {
   }
 })
 
+router.post('/webrtc-flag/:address', async (req, res) => {
+  const { address } = req.params
+  const {flagger, reason, timestamp, signature} = req.body
+  try {
+    await webrtc.flagAddress(address, flagger, reason, timestamp, signature)
+    res.send({flagged:1})
+  } catch (e) {
+    logger.error('Internal server error: ', e)
+    res.status(500).json({ message: 'Unexpected error has occurred' })
+  }
+})
+
 router.get('/webrtc-offer/:listingID/:offerID', async (req, res) => {
   try {
     const {listingID, offerID} = req.params
@@ -411,11 +423,11 @@ router.post('/webrtc-user-info', async (req, res) => {
   }
 })
 
-router.get('/webrtc-user-info/:accountAddress', async (req, res) => {
-  const {accountAddress} = req.params
+router.get('/webrtc-user-info/:accountAddress/:watcherAddress?', async (req, res) => {
+  const {accountAddress, watcherAddress} = req.params
 
   try {
-    const info = await webrtc.getUserInfo(accountAddress)
+    const info = await webrtc.getUserInfo(accountAddress, watcherAddress)
     if (info) {
       res.send(info)
     } else {
