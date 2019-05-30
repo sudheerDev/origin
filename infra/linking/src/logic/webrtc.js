@@ -108,7 +108,13 @@ class WebrtcSub {
   }
 
   async setUserInfo() {
-    this.userInfo = await this.logic.getUserInfo(this.subscriberEthAddress)
+    const user = await this.logic.getUserInfo(this.subscriberEthAddress)
+    if (user) {
+      if (user.data.banned) {
+        this.banned = true
+      }
+      this.userInfo = user.info
+    }
     // set active only after user info is gotten
     this.setActive()
   }
@@ -735,11 +741,11 @@ export default class Webrtc {
     const userInfo = await db.UserInfo.findOne({ where: {ethAddress } })
     if (userInfo)
     {
-      if (userInfo.info) {
+      if (!userInfo.banned && userInfo.info) {
         info = userInfo.info
       }
       data.banned = userInfo.banned
-      data.flags = userInfo.flags
+      data.reports = userInfo.flags
       data.blockingYou = (await this.getRedis(getBlockKey(watcherAddress, ethAddress))) ? true:undefined
       data.blockedByYou = (await this.getRedis(getBlockKey(ethAddress, watcherAddress))) ? true:undefined
     }
@@ -1084,7 +1090,8 @@ export default class Webrtc {
     if (accountAddress && accountAddress.startsWith("0x"))
     {
       const rate = await this.getEthToUsdRate()
-      const account = await this.getUserInfo(accountAddress)
+      const result = await this.getUserInfo(accountAddress)
+      const account = result.info
 
       const minUsdCost = Number(account.minCost) * rate
       const title = (account.name || accountAddress) + ` is available for a chai for ${account.minCost} ETH($${minUsdCost})`
