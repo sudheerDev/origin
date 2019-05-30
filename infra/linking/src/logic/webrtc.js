@@ -651,6 +651,10 @@ class WebrtcSub {
 
   clientMessage(msgObj) {
     logger.info("We have a message from the client:", msgObj)
+    if (this.banned) {
+      logger.info(`User ${this.subscriberEthAddress} is banned not handling messages`)
+      return
+    }
     for (const handler of this.incomingMsgHandlers) {
       if (handler.call(this, msgObj) ) {
         return
