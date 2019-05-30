@@ -325,10 +325,12 @@ class WebrtcSub {
       const key = getBlockKey(block, this.subscriberEthAddress)
       this.redis.set(key, "1")
       logger.info("setting: ", key)
+      this.redis.publish(CHANNEL_PREFIX + block, JSON.stringify({from:block, updated:1}))
       return true
     } else if (unblock) {
       const key = getBlockKey(unblock, this.subscriberEthAddress)
       this.redis.del(key)
+      this.redis.publish(CHANNEL_PREFIX + unblock, JSON.stringify({from:unblock, updated:1}))
       logger.info("clearing: ", key)
       return true
     }
@@ -850,7 +852,6 @@ export default class Webrtc {
       }
     }
 
-    throw new Error("What is up yo?")
     return {}
   }
 
