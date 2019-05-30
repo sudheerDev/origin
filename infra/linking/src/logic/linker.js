@@ -224,7 +224,7 @@ class Linker {
             priority: 'high',
             ttl,
             notification: {
-              //channelId: 'chai',
+              channelId: 'rn-push-notification-channel-id',
               sound: silent ? undefined: 'default'
             }
           },
