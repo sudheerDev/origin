@@ -95,6 +95,7 @@ export async function extractAccountStat(accountUrl) {
     if (site == YOUTUBE_SITE) {
       const channelId = $('meta[itemprop="channelId"]').attr('content')
       const description = $('meta[name="description"]').attr('content')
+      const title = $('meta[name="title"]').attr('content')
 
       const referenceAccountUrl = getYTAccountUrl(channelId)
       if (referenceAccountUrl == accountUrl){
@@ -103,7 +104,7 @@ export async function extractAccountStat(accountUrl) {
         if (subscribersString){
           subscribers = Number(subscribersString.replace(/,/g, ''))
         }
-        return {description, subscribers}
+        return {description, subscribers, title}
       } else {
         throw new AttestationError(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
         logger.info(`extracted channelId: ${channelId} does not match: ${accountUrl}`)
