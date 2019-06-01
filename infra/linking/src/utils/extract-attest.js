@@ -218,7 +218,8 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       const account = matchResult[1]
       const accountUrl = `https://www.instagram.com/${account}/`
       const sanitizedUrl = accountUrl
-      if (instagramHtml.includes(attestUrl.replace(/&.*/g, '')))
+      //instagram strips out everything after the ?
+      if (instagramHtml.includes(attestUrl.replace(/\?.*/g, '')))
       {
         return {site, account, accountUrl, sanitizedUrl}
       } else {
