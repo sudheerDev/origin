@@ -106,12 +106,13 @@ export async function extractLinkedin(code, clientId, redirectUrl, clientSecret)
   
   const profileResult = await fetch('https://api.linkedin.com/v2/me', {
     headers:{
-      Authroization:`Bearer ${access_token}`
+      Authorization:`Bearer ${access_token}`
     }
   })
 
   if (!profileResult.ok) {
-    throw new Error("Cannot get profile from access token", await profileResult.text())
+    console.log("Error getting profile:",  await profileResult.text())
+    throw new Error("Cannot get profile from access token")
   }
 
   const profile = await profileResult.json()
