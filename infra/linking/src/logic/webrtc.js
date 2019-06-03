@@ -1166,7 +1166,7 @@ export default class Webrtc {
       const redirectUrl = this.linker.getDappUrl() + 'linkedin-authed'
       const clientId = process.env.LINKEDIN_CLIENT_ID
       const secret = process.env.LINKEDIN_SECRET
-      const {site, account, accountUrl, sanitizedUrl, info} = await extractLinkedin(code, clientId, attestUrl, secret)
+      const {site, account, accountUrl, sanitizedUrl, info} = await extractLinkedin(code, clientId, redirectUrl, secret)
 
       let attested = await db.AttestedSite.findOne({ where: {ethAddress, site, account}})
       if (!attested) {
