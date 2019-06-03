@@ -17,6 +17,8 @@ const CHANNEL_ALL = "webrtcall"
 
 const emptyAddress = '0x0000000000000000000000000000000000000000'
 
+const ACTIVE_INFO_ONLY = process.env.ACTIVE_INFO_ONLY
+
 const TURN_KEY = process.env.TURN_KEY
 const TURN_PREFIX = process.env.TURN_PREFIX
 const TURN_HOST = process.env.TURN_HOST
@@ -714,18 +716,33 @@ export default class Webrtc {
   }
 
   async getActiveAddresses() {
-    const onlineActives = Object.keys(this.activeAddresses)
-    const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
-      include:[ {model:db.UserInfo, required:false} ],
-      where: { active:true, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:50})
+    const actives = []
+    if (ACTIVE_INFO_ONLY)
+    {
+      const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
+        include:[ {model:db.UserInfo, required:true} ],
+        where: { active:true, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true}, '$UserInfo.hidden$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:50})
 
-    for (const notify of activeNotifcations) {
-      if (!onlineActives.includes(notify.ethAddress))
-      {
-        onlineActives.push(notify.ethAddress)
+      for (const notify of activeNotifcations) {
+        if (!actives.includes(notify.ethAddress))
+        {
+          actives.push(notify.ethAddress)
+        }
+      }
+    } else {
+      actives.push(...Object.keys(this.activeAddresses))
+      const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
+        include:[ {model:db.UserInfo, required:false} ],
+        where: { active:true, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:50})
+
+      for (const notify of activeNotifcations) {
+        if (!actives.includes(notify.ethAddress))
+        {
+          actives.push(notify.ethAddress)
+        }
       }
     }
-    return onlineActives
+    return actives
   }
 
   async submitUserInfo(ipfsHash) {
