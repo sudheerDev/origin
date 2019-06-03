@@ -85,8 +85,9 @@ function getYTVideoUrl(videoId) {
   return `https://www.youtube.com/watch?v=${videoId}`
 }
 
-export async function extractLinkedin(code, clientId, redirectUrl, secret) {
-  const authed = querystring.stringify({code, secret,
+export async function extractLinkedin(code, clientId, redirectUrl, clientSecret) {
+  const authed = querystring.stringify({code, 
+    client_secret:clientSecret,
     grant_type:'authorization_code', 
     redirect_uri:redirectUrl,
     client_id: clientId
