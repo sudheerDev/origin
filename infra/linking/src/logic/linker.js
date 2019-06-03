@@ -17,6 +17,7 @@ import * as firebase from 'firebase-admin' // AKA "admin"
 
 const ATTESTATION_ACCOUNT = process.env.ATTESTATION_ACCOUNT
 const DAPP_URL = `${process.env.DAPP_URL}`
+const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID
 
 const API_VERSION = "0.6"
 
@@ -356,6 +357,7 @@ class Linker {
       attestationAccount: ATTESTATION_ACCOUNT,
       perfModeEnabled,
       discoveryServerUrl,
+      lnClientId: LINKEDIN_CLIENT_ID,
       needUpdate
     }
   }

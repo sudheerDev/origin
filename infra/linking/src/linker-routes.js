@@ -411,7 +411,10 @@ router.get('/webrtc-static/:pathAddress?', async (req, res) => {
   res.send(await webrtc.getPage(pathAddress||accountAddress))
 })
 
-
+router.get('linkedin-authed', async (req, res) => {
+  const result = await webrtc.processLinkedinAuth(req.query)
+  res.send(result)
+})
 
 router.post('/webrtc-user-info', async (req, res) => {
   try {

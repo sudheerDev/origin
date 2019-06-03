@@ -1,7 +1,7 @@
 import redis from 'redis'
 import origin, { web3 } from './../services/origin'
 import db from './../models/'
-import extractAttestInfo, {extractAccountStat} from './../utils/extract-attest'
+import extractAttestInfo, {extractAccountStat, extractLinkedin} from './../utils/extract-attest'
 import createHtml from './../utils/static-web'
 import { getEthToUSDRate } from './../utils/currency'
 import { setTurnCred } from './../utils/turn'
@@ -1159,4 +1159,26 @@ export default class Webrtc {
     })
   }
 
+  async linkedinAuthed(query) {
+    const {code, state} = query
+    if (code && state && state.startsWith('0x')) {
+      const ethAddress = state
+      const redirectUrl = this.linker.getDappUrl() + 'linkedin-authed'
+      const clientId = process.env.LINKEDIN_CLIENT_ID
+      const secret = process.env.LINKEDIN_SECRET
+      const {site, account, accountUrl, sanitizedUrl, info} = await extractLinkedin(code, clientId, attestUrl, secret)
+
+      let attested = await db.AttestedSite.findOne({ where: {ethAddress, site, account}})
+      if (!attested) {
+        attested = await db.AttestedSite.create({ethAddress, site, account, accountUrl, verified:true})
+      }
+      if (info)
+      {
+        attested.update({info})
+      }
+      await db.InboundAttest.upsert({attestedSiteId:attested.id, ethAddress, url:accountUrl, verified:true, sanitizedUrl})
+      return {site, account, accountUrl, sanitizedUrl}
+    }
+    return {error:query.error}
+  }
 }

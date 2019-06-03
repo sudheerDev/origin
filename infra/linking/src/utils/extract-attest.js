@@ -85,6 +85,44 @@ function getYTVideoUrl(videoId) {
   return `https://www.youtube.com/watch?v=${videoId}`
 }
 
+export async function extractLinkedin(code, clientId, redirectUrl, secret) {
+  const authed = querystring.stringify({code, secret,
+    grant_type:'authorization_code', 
+    redirect_uri:redirectUrl,
+    client_id: clientId
+    })
+  const result = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
+    method:'POST',
+    headers:{
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body:authed
+  })
+  if(!result.ok) {
+    throw new Error("Cannot retreive access token")
+  }
+  const {access_token, expires_in} = await result.json()
+
+  const profileResult = await fetch('https://www.linkedin.com/v2/me', {
+    headers:{
+      Authroization:`Bearer ${access_token}`
+    }
+  })
+
+  if (!profileResult.ok) {
+    throw new Error("Cannot get profile from access token")
+  }
+
+  const profile = await profileResult.json()
+  const {id} = profile
+  if (!id) {
+    throw new Error("No id in retreieved linkedin profile", profile)
+
+  }
+  const accountUrl = 'https://www.linkedin.com/in/' + id
+  return {LINKEDIN_SITE, account:id, accountUrl, sanitizedUrl:accountUrl, info:profile}
+}
+
 export async function extractAccountStat(accountUrl) {
   const site = findReferralSite(accountUrl)
 
