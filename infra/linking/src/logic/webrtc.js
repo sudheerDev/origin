@@ -1163,7 +1163,7 @@ export default class Webrtc {
     const {code, state} = query
     if (code && state && state.startsWith('0x')) {
       const ethAddress = state
-      const redirectUrl = this.linker.getDappUrl() + 'linkedin-authed'
+      const redirectUrl = this.linker.getDappUrl() + 'api/wallet-linker/linkedin-authed'
       const clientId = process.env.LINKEDIN_CLIENT_ID
       const secret = process.env.LINKEDIN_SECRET
       const {site, account, accountUrl, sanitizedUrl, info} = await extractLinkedin(code, clientId, redirectUrl, secret)
