@@ -103,15 +103,15 @@ export async function extractLinkedin(code, clientId, redirectUrl, clientSecret)
     throw new Error("Cannot retreive access token")
   }
   const {access_token, expires_in} = await result.json()
-
-  const profileResult = await fetch('https://www.linkedin.com/v2/me', {
+  
+  const profileResult = await fetch('https://api.linkedin.com/v2/me', {
     headers:{
       Authroization:`Bearer ${access_token}`
     }
   })
 
   if (!profileResult.ok) {
-    throw new Error("Cannot get profile from access token")
+    throw new Error("Cannot get profile from access token", await profileResult.text())
   }
 
   const profile = await profileResult.json()
@@ -121,7 +121,7 @@ export async function extractLinkedin(code, clientId, redirectUrl, clientSecret)
 
   }
   const accountUrl = 'https://www.linkedin.com/in/' + id
-  return {LINKEDIN_SITE, account:id, accountUrl, sanitizedUrl:accountUrl, info:profile}
+  return {site:LINKEDIN_SITE, account:id, accountUrl, sanitizedUrl:accountUrl, info:profile}
 }
 
 export async function extractAccountStat(accountUrl) {
