@@ -119,10 +119,10 @@ export async function extractLinkedin(code, clientId, redirectUrl, clientSecret)
   const {id} = profile
   if (!id) {
     throw new Error("No id in retreieved linkedin profile", profile)
-
   }
-  const accountUrl = 'https://www.linkedin.com/in/' + id
-  return {site:LINKEDIN_SITE, account:id, accountUrl, sanitizedUrl:accountUrl, info:profile}
+  const info = { id, title: profile.localizedFirstName + ' ' + profile.localizedLastName }
+  const accountUrl = 'https://www.linkedin.com/internalId/' + id
+  return {site:LINKEDIN_SITE, account:id, accountUrl, sanitizedUrl:accountUrl, info}
 }
 
 export async function extractAccountStat(accountUrl) {
