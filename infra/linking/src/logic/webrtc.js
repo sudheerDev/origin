@@ -1159,7 +1159,7 @@ export default class Webrtc {
     })
   }
 
-  async linkedinAuthed(query) {
+  async processLinkedinAuth(query) {
     const {code, state} = query
     if (code && state && state.startsWith('0x')) {
       const ethAddress = state
