@@ -417,7 +417,7 @@ router.get('/linkedin-authed', async (req, res) => {
     //
     // assume https because https is required for universal linking
     const fullUrl = 'https://' + req.get('host') + req.originalUrl
-    res.send(`<!DOCTYPE html><html><body link="blue"><p><a href="${fullUrl}">Open in app</a></p></body></html>`)
+    res.send(`<!DOCTYPE html><html><body link="blue"><p><a href="${fullUrl}" target="_blank">Open in chai</a></p></body></html>`)
   } else {
     const result = await webrtc.processLinkedinAuth(req.query)
     
