@@ -23,8 +23,8 @@ module.exports = {
   },
   down: (queryInterface, Sequelize) => {
     return Promise.all([
-      queryInterface.removeColumn(Tablename, 'flags'),
-      queryInterface.removeColumn(Tablename, 'banned')
+      queryInterface.removeColumn(TableName, 'flags'),
+      queryInterface.removeColumn(TableName, 'banned')
     ])
   }
 };

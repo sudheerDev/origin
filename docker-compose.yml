@@ -23,7 +23,7 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - '6379:6379'
-    command: /run.sh --maxmemory 100mb
+    command: /run.sh --maxmemory 500mb
 
 
   services-linker:
@@ -93,30 +93,35 @@ services:
     ports:
       - "9999:9999"
     environment:
-      - IPFS_API_URL=http://services-linker:5002
-      - IPFS_GATEWAY_URL=http://services-linker:8080
+      - IPFS_API_URL=http://localhost:5002
+      - IPFS_GATEWAY_URL=http://localhost:8080
     command: npm run start --prefix infra/ipfs-proxy
 
-  linking-linker:
-    container_name: linking-linker
-    image: origin-linker
-    volumes: *volumes
-    environment:
-      - HOT_WALLET_PK=C87509A1C067BBDE78BEB793E6FA76530B6382A4C0241E5E4A9EC0A0F44DC0D3
-      - ATTESTATION_ACCOUNT=0x99C03fBb0C995ff1160133A8bd210D0E77bCD101
-      - DAPP_URL=http://localhost:3000
-      - DATABASE_URL=postgres://origin:origin@postgres-linker/origin
-      - DISCOVERY_SERVER_URL=http://localhost:4000
-      - PROVIDER_URL=http://localhost:8545
-      - REDIS_URL=redis://redis-master-linker:6379
-      - ENVKEY=
-    depends_on:
-      - postgres-linker
-      - redis-master-linker
-    ports:
-      - "3008:3008"
-    command:
-      >
-      /bin/bash -c "wait-for.sh -t 0 -q postgres-linker:5432 --
-      npm run migrate --prefix infra/linking &&
-      npm run start --prefix infra/linking"
+  # linking-linker:
+  #   container_name: linking-linker
+  #   image: origin-linker
+  #   volumes: *volumes
+  #   environment:
+  #     - LINKING_IN_DOCKER=1
+  #     - HOT_WALLET_PK=C87509A1C067BBDE78BEB793E6FA76530B6382A4C0241E5E4A9EC0A0F44DC0D3
+  #     - ATTESTATION_ACCOUNT=0x99C03fBb0C995ff1160133A8bd210D0E77bCD101
+  #     - DAPP_URL=http://localhost:3000
+  #     - DATABASE_URL=postgres://origin:origin@postgres-linker/origin
+  #     - DISCOVERY_SERVER_URL=http://localhost:4000
+  #     - PROVIDER_URL=http://localhost:8545
+  #     - REDIS_URL=redis://redis-master-linker:6379
+  #     - IPFS_DOMAIN=services-linker
+  #     - IPFS_API_PORT=5002
+  #     - IPFS_GATEWAY_PORT=8080
+  #     - IPFS_GATEWAY_PROTOCOL=http
+  #     - ENVKEY=
+  #   depends_on:
+  #     - postgres-linker
+  #     - redis-master-linker
+  #   ports:
+  #     - "3008:3008"
+  #   command:
+  #     >
+  #     /bin/bash -c "wait-for.sh -t 0 -q postgres-linker:5432 --
+  #     npm run migrate --prefix infra/linking &&
+  #     npm run start --prefix infra/linking"

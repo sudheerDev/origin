@@ -7,6 +7,8 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import 'express-async-errors'
+import linkerRoutes from './linker-routes'
+import logger from 'logger'
 
 const app = express()
 expressWs(app)
@@ -17,12 +19,9 @@ app.use(cors({ origin: true, credentials: true }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 
-import linkerRoutes from './linker-routes'
-
 const port = 3008
-
 app.use('/api/wallet-linker', linkerRoutes)
 
-app.listen(port, () => console.log(`Linking server listening on port ${port}!`))
+app.listen(port, () => logger.info(`Linking server listening on port ${port}!`))
 
 export default app

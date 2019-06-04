@@ -46,6 +46,7 @@
     "fetch-h2": "^2.2.0",
     "firebase-admin": "^7.0.0",
     "js-sha3": "^0.8.0",
+    "logplease": "^1.2.15",
     "lodash": "^4.17.11",
     "morgan": "^1.9.1",
     "per-env": "^1.0.2",

@@ -13,6 +13,6 @@ module.exports = {
     )
   },
   down: (queryInterface, Sequelize) => {
-    return queryInterface.removeColumn(tablename, 'hidden')
+    return queryInterface.removeColumn(TableName, 'hidden')
   }
 };
