@@ -412,8 +412,17 @@ router.get('/webrtc-static/:pathAddress?', async (req, res) => {
 })
 
 router.get('/linkedin-authed', async (req, res) => {
-  const result = await webrtc.processLinkedinAuth(req.query)
-  res.send(result)
+  if (req.useragent.browser != "EthCam") {
+    // this is not submitted by our app.
+    //
+    //
+    const fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl
+    res.send(`<!DOCTYPE html><html><body link="blue"><p><a href="${fullUrl}">Open in app</a></p></body></html>`)
+  } else {
+    const result = await webrtc.processLinkedinAuth(req.query)
+    
+    res.send(result)
+  }
 })
 
 router.post('/webrtc-user-info', async (req, res) => {
