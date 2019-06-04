@@ -415,8 +415,8 @@ router.get('/linkedin-authed', async (req, res) => {
   if (req.useragent.browser != "EthCam") {
     // this is not submitted by our app.
     //
-    //
-    const fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl
+    // assume https because https is required for universal linking
+    const fullUrl = 'https://' + req.get('host') + req.originalUrl
     res.send(`<!DOCTYPE html><html><body link="blue"><p><a href="${fullUrl}">Open in app</a></p></body></html>`)
   } else {
     const result = await webrtc.processLinkedinAuth(req.query)
