@@ -306,25 +306,17 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
     logger.info("fetching referralUrl:", referralUrl)
 
     if (response.ok) {
-      const $ = cheerio.load(await response.text())
-      const description = $('meta[property="og:description"]').attr('content')
-      const tweetUrlString = $('meta[property="og:url"]').attr('content')
-
-      logger.info("tweet description and url:", description, tweetUrlString)
-      const tweetUrl = new URL(tweetUrlString)
-      const splitPaths = tweetUrl.pathname.split("/")
-
-      if (!tweetUrl.hostname.endsWith("twitter.com") || splitPaths.length != 4 ||  splitPaths[2] != "status")
-      {
-        logger.warn(`Not a valid tweet: ${tweetUrl}`)
-        throw new AttestationError(`Not a valid tweet: ${tweetUrl}`)
+      const responseText = await response.text()
+      const matchResult = /^https:\/\/[a-zA-Z0-9\.]*twitter.com\/([a-zA-Z0-9_]*)\/?.*/g.exec(referralUrl)
+      if (!matchResult || matchResult.length !== 2) {
+        throw new AttestationError(`Invalid twitter account link: ${referralUrl}`)
       }
 
-      const account = splitPaths[1]
+      const account = matchResult[1]
       const accountUrl = `https://twitter.com/${account}`
-      const sanitizedUrl = `${accountUrl}/status/${splitPaths[3]}`
-      const result = {site, account, accountUrl, sanitizedUrl}
-      if (description.includes(attestUrl.replace(/&/g, '&amp;')))
+      const sanitizedUrl = accountUrl
+      const result = { site, account, accountUrl, sanitizedUrl }
+      if (responseText.includes(attestUrl.replace(/&/g, '&amp;')))
       {
         return result
       } else {
