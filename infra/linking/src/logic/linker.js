@@ -217,6 +217,7 @@ class Linker {
         const safeData = {data:JSON.stringify(data)}
         if (ring) {
           safeData.priority = "max"
+          safeData.visibility = "public"
         }
         const ttl = ring ? 5: undefined  //ring for 5 seconds 
         const message = {

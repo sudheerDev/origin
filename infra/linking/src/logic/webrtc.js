@@ -1116,8 +1116,8 @@ export default class Webrtc {
       const account = result.info
 
       const minUsdCost = Number(account.minCost) * rate
-      const title = (account.name || accountAddress) + ` is available for a chai for ${account.minCost} ETH($${minUsdCost})`
-      const description = account.description || ""
+      const title = (account.name || accountAddress)
+      const description = account.description || "" + `\nEngage and support ${title} for ${account.minCost} ETH($${minUsdCost})`
       const url = this.linker.getDappUrl() + "profile/" + accountAddress
       const imageUrl = account.icon && this.getIpfsUrl(account.icon)
 
@@ -1128,8 +1128,8 @@ export default class Webrtc {
       account.minUsdCost = minUsdCost
       return createHtml({title, description, url, imageUrl}, {account}, BUNDLE_PATH)
     } else {
-      const title = "How much is a shared moment worth?"
-      const description = "Pay to share a moment with those that your admire most."
+      const title = "Chai: Exclusive Video Access"
+      const description = "Support and get exclusive video access to all your favorite experts, influencers, thought leaders, streamers."
       const url = this.linker.getDappUrl() 
       const imageUrl = null
       return createHtml({title, description, url, imageUrl}, {index:true}, BUNDLE_PATH)
