@@ -1116,23 +1116,27 @@ export default class Webrtc {
       const account = result.info
 
       const minUsdCost = Number(account.minCost) * rate
-      const title = (account.name || accountAddress)
+      const title = "Chai: " + (account.name || accountAddress)
       const description = account.description || "" + `\nEngage and support ${title} for ${account.minCost} ETH($${minUsdCost})`
       const url = this.linker.getDappUrl() + "profile/" + accountAddress
       const imageUrl = account.icon && this.getIpfsUrl(account.icon)
+      const ogType = "profile"
+      const twitterType = "summary_large_image"
 
       // map in the iconSource
       if( imageUrl ) {
         account.iconSource = {uri:imageUrl}
       }
       account.minUsdCost = minUsdCost
-      return createHtml({title, description, url, imageUrl}, {account}, BUNDLE_PATH)
+      return createHtml({title, description, url, imageUrl, ogType, twitterType}, {account}, BUNDLE_PATH)
     } else {
+      const ogType = "website"
+      const twitterType = "summary"
       const title = "Chai: Exclusive Video Access"
       const description = "Support and get exclusive video access to all your favorite experts, influencers, thought leaders, streamers."
       const url = this.linker.getDappUrl() 
-      const imageUrl = null
-      return createHtml({title, description, url, imageUrl}, {index:true}, BUNDLE_PATH)
+      const imageUrl = "https://chai.video/images/chai-logo.jpg"
+      return createHtml({title, description, url, imageUrl, ogType, twitterType}, {index:true}, BUNDLE_PATH)
     }
   }
   

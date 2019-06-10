@@ -35,7 +35,7 @@ function addAllMetas(metas, name, content) {
   metas.push(twitterMeta(name, content))
 }
 
-export default function createHtml({title, description, url, imageUrl, keywords} = meta, state, bundlePath) {
+export default function createHtml({title, description, url, imageUrl, keywords, ogType, twitterType} = meta, state, bundlePath) {
   const metas = []
 
   if (title) {
@@ -56,6 +56,14 @@ export default function createHtml({title, description, url, imageUrl, keywords}
 
   if(keywords) {
     metas.push(nameMeta("keywords", keywords))
+  }
+
+  if (ogType) {
+    metas.push(ogMeta("type", ogType))
+  }
+
+  if (twitterType) {
+    metas.push(twitterMeta("type", twitterType))
   }
 
   return HTML(metas, title, state, bundlePath)
