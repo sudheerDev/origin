@@ -316,26 +316,22 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
       const accountUrl = `https://twitter.com/${account}`
       const sanitizedUrl = accountUrl
       const result = { site, account, accountUrl, sanitizedUrl }
-      if (responseText.includes(attestUrl.replace(/&/g, '&amp;')))
+
+      /* We filter tweets to include only the ones twitted by the account. Among
+       * these we search for the attested url 
+       * 
+       * Downside is when twitter changes their webpage layout this is going to stop working. 
+       * We should implement twitter API at some point.
+       */
+      const $ = cheerio.load(responseText)
+      const accountTweets = $(`.content .stream-item-header a[href='/${account}']`).parent().parent().html()
+
+      if (accountTweets.includes(attestUrl.replace(/&/g, '&amp;')))
       {
         return result
       } else {
-        const shortUrlMatches = description.match(/https:\/\/t.co\/[a-z0-9]+/i)
-        if (shortUrlMatches)
-        {
-          for (const match of shortUrlMatches) {
-            const realUrl = $(`a[href="${match}"]`).attr('data-expanded-url')
-            if (realUrl == attestUrl) {
-              return result
-            }
-          }
-
-          logger.warn(`Can not find referral url in tweet`)
-          throw new AttestationError(`Can not find referral url in tweet`)
-        } else {
-          logger.warn(`Unexpected twitter url format`)
-          throw new AttestationError(`Unexpected twitter url format`)
-        }
+        logger.warn(`Can not find referral url in tweet`)
+        throw new AttestationError(`Can not find referral url in tweet`)
       }
     } else {
       throw new AttestationError(`Can not fetch data from: ${referralUrl}`)
