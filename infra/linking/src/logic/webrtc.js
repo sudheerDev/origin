@@ -1116,8 +1116,9 @@ export default class Webrtc {
       const account = result.info
 
       const minUsdCost = Number(account.minCost) * rate
-      const title = "Chai: " + (account.name || accountAddress)
-      const description = `Engage and support ${title} for ${account.minCost} ETH($${minUsdCost}). ` + (account.description || '')
+      const name = account.name || accountAddress
+      const title = "Chai: " + name
+      const description = `Engage and support ${name} for ${account.minCost} ETH($${minUsdCost.toFixed(2)}). ` + (account.description || '')
       const url = this.linker.getDappUrl() + "profile/" + accountAddress
       const imageUrl = account.icon && this.getIpfsUrl(account.icon)
       const ogType = "profile"
