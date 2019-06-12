@@ -312,7 +312,8 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
         throw new AttestationError(`Invalid twitter account link: ${referralUrl}`)
       }
 
-      const account = matchResult[1]
+      const mResult = matchResult[1]
+      const account = mResult && mResult.toLowerCase()
       const accountUrl = `https://twitter.com/${account}`
       const sanitizedUrl = accountUrl
       const result = { site, account, accountUrl, sanitizedUrl }
