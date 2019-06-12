@@ -312,11 +312,9 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
         throw new AttestationError(`Invalid twitter account link: ${referralUrl}`)
       }
 
-      const mResult = matchResult[1]
-      const account = mResult && mResult.toLowerCase()
+      let account = matchResult[1]
       const accountUrl = `https://twitter.com/${account}`
       const sanitizedUrl = accountUrl
-      const result = { site, account, accountUrl, sanitizedUrl }
 
       /* We filter tweets to include only the ones twitted by the account. Among
        * these we search for the attested url 
@@ -325,11 +323,19 @@ export default async function extractAttestInfo(attestUrl, referralUrl) {
        * We should implement twitter API at some point.
        */
       const $ = cheerio.load(responseText)
-      const accountTweets = $(`.content .stream-item-header a[href='/${account}']`).parent().parent().html()
+      let accountTweets = ''
+      for (const _a of $(`.content .stream-item-header a`).get()){
+        const a = $(_a)
+        const href = a.attr('href')
+        if (href.startsWith('/') && account.toLowerCase() == href.slice(1).toLowerCase()) {
+          account = href.slice(1)
+          accountTweets += a.parent().parent().html()
+        }
+      }
 
       if (accountTweets.includes(attestUrl.replace(/&/g, '&amp;')))
       {
-        return result
+        return { site, account, accountUrl, sanitizedUrl }
       } else {
         logger.warn(`Can not find referral url in tweet`)
         throw new AttestationError(`Can not find referral url in tweet`)
