@@ -23,6 +23,8 @@ const TURN_KEY = process.env.TURN_KEY
 const TURN_PREFIX = process.env.TURN_PREFIX
 const TURN_HOST = process.env.TURN_HOST
 
+const ADMIN_ADDRESSES = process.env.ADMIN_ADDRESSES ? process.env.ADMIN_ADDRESSES.split(',') : []
+
 const CALL_STARTED = 'started'
 const CALL_DECLINED = 'declined'
 const CALL_ENDED = 'ended'
@@ -80,7 +82,7 @@ class WebrtcSub {
 
     this.incomingMsgHandlers = [this.handleApiVersion, this.handleSubscribe, this.handleExchange, this.handleLeave, this.handleDisableNotification, 
       this.handleNotification, this.handleSetPeer, this.handleVoucher, this.handleGetOffers, this.handleRead, this.handleReject, 
-      this.handleDismiss, this.handleCollected, this.handleStartSession, this.handleBlock]
+      this.handleDismiss, this.handleCollected, this.handleStartSession, this.handleBlock, this.handleAdmin]
 
     this.setUserInfo()
     this.getPendingOffers({ignoreBlockchain:true})
@@ -636,6 +638,35 @@ class WebrtcSub {
     }
   }
 
+  handleAdmin({admin}) {
+    if (admin && ADMIN_ADDRESSES.includes(this.subscriberEthAddress)) {
+      (async () => {
+        if (admin.getAllAddresses) {
+          this.sendMsg({allAddresses:await this.logic.getAllAddresses()})
+        } else if (admin.ban) {
+          const {ethAddress, banned} = admin.ban
+          const userInfo = await db.UserInfo.findOne({ where: {ethAddress} })
+          if (!userInfo) {
+            await db.UserInfo.upsert({ethAddress:ethAddress, banned})
+          } else {
+            await userInfo.update({banned})
+            this.logic.broadcastUpdated(ethAddress)
+          }
+        } else if (admin.hide) {
+          const {ethAddress, hidden} = admin.hide
+          const userInfo = await db.UserInfo.findOne({ where: {ethAddress} })
+          if (!userInfo) {
+            await db.UserInfo.upsert({ethAddress:ethAddress, hidden})
+          } else {
+            await userInfo.update({hidden})
+            this.logic.broadcastUpdated(ethAddress)
+          }
+        }
+      })()
+      return true
+    }
+  }
+
   async getRedis(key) {
     return this.logic.getRedis(key)
   }
@@ -715,6 +746,22 @@ export default class Webrtc {
     throw new Error(`We cannot auth the signature`)
   }
 
+  async getAllAddresses() {
+    const actives = []
+    const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
+      include:[ {model:db.UserInfo, required:true} ],
+      where: { active:true}, order:[['lastOnline', 'DESC']], limit:100})
+
+    for (const notify of activeNotifcations) {
+      if (!actives.includes(notify.ethAddress))
+      {
+        actives.push(notify.ethAddress)
+      }
+    }
+
+    return actives
+  }
+
   async getActiveAddresses() {
     const actives = []
     if (ACTIVE_INFO_ONLY)
@@ -745,6 +792,10 @@ export default class Webrtc {
     return actives
   }
 
+  broadcastUpdated(ethAddress) {
+    this.redis.publish(CHANNEL_ALL, JSON.stringify({from:ethAddress, updated:1}))
+  }
+
   async submitUserInfo(ipfsHash) {
     const info = await origin.ipfsService.loadObjFromFile(ipfsHash)
     // we should verify the signature for this
@@ -752,7 +803,8 @@ export default class Webrtc {
     {
       logger.info("submitting ipfsHash:", ipfsHash)
       await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info})
-      this.redis.publish(CHANNEL_ALL, JSON.stringify({from:info.address, updated:1}))
+      this.broadcastUpdated(info.address)
+
       return true
     }
     return false
@@ -766,6 +818,8 @@ export default class Webrtc {
     {
       if (!userInfo.banned && userInfo.info) {
         info = userInfo.info
+      } else {
+        data.banned_info = userInfo.info
       }
       data.banned = userInfo.banned
       data.reports = userInfo.flags
