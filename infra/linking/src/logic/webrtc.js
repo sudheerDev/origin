@@ -721,10 +721,10 @@ export default class Webrtc {
     {
       const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
         include:[ {model:db.UserInfo, required:true} ],
-        where: { active:true, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true}, '$UserInfo.hidden$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:50})
+        where: { active:true, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true}, '$UserInfo.hidden$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:100})
 
       for (const notify of activeNotifcations) {
-        if (!actives.includes(notify.ethAddress))
+        if (!actives.includes(notify.ethAddress) && notify.UserInfo.info.icon)
         {
           actives.push(notify.ethAddress)
         }
