@@ -5,7 +5,8 @@ module.exports = (sequelize, DataTypes) => {
     info: DataTypes.JSON,
     ipfsHash: DataTypes.STRING(64),
     flags: DataTypes.INTEGER,
-    banned: DataTypes.BOOLEAN
+    banned: DataTypes.BOOLEAN,
+    rank: DataTypes.INTEGER
   }, {
     tableName: 'user_info'
   });

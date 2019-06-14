@@ -346,7 +346,7 @@ router.get('/webrtc-addresses', async (req, res) => {
     const actives = await webrtc.getActiveAddresses()
     res.send(actives)
   } catch (e) {
-    logger.error('Internal server error: ', e.message)
+    logger.error('Internal server error: ', e)
     res.status(500).json({ message: 'Unexpected error has occurred' })
   }
 })

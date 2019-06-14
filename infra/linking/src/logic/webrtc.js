@@ -767,11 +767,11 @@ export default class Webrtc {
     if (ACTIVE_INFO_ONLY)
     {
       const activeNotifcations = await db.WebrtcNotificationEndpoint.findAll({
-        include:[ {model:db.UserInfo, required:true} ],
-        where: { active:true, '$UserInfo.flags$':{[db.Sequelize.Op.lt]:3}, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true}, '$UserInfo.hidden$':{[db.Sequelize.Op.ne]:true} }, order:[['lastOnline', 'DESC']], limit:100})
+        include:[ {model:db.UserInfo, required:true, attributes:["info", [db.Sequelize.literal('"WebrtcNotificationEndpoint"."last_online" + "UserInfo"."rank" * interval \'1 second\''), 'lastOnlineRank']]} ],
+        where: { active:true, '$UserInfo.flags$':{[db.Sequelize.Op.lt]:3}, '$UserInfo.banned$':{[db.Sequelize.Op.ne]:true}, '$UserInfo.hidden$':{[db.Sequelize.Op.ne]:true} }, order:[[db.Sequelize.literal('"UserInfo.lastOnlineRank"'), 'DESC']], limit:100})
 
       for (const notify of activeNotifcations) {
-        if (!actives.includes(notify.ethAddress) && notify.UserInfo.info.icon)
+        if (!actives.includes(notify.ethAddress) && notify.UserInfo.info && notify.UserInfo.info.icon)
         {
           actives.push(notify.ethAddress)
         }
@@ -796,13 +796,42 @@ export default class Webrtc {
     this.redis.publish(CHANNEL_ALL, JSON.stringify({from:ethAddress, updated:1}))
   }
 
+  async getRank(ethAddress, info) {
+    let rank = 0
+    if (info && info.attests) {
+      try {
+        const attestedSites = await db.AttestedSite.findAll({where:{ethAddress, verified:true}})
+        const attests = info.attests
+        for (const attest of attests.slice()) {
+          attest.verified = false
+          for(const attested of attestedSites) {
+            if (attested.accountUrl == attest.accountUrl 
+              && attested.site == attest.site 
+              && attested.account == attest.account)
+            {
+              rank += 24 * 3600
+              const count = attested.info && (attested.info.subscribers || attested.info.followers)
+              if (count) {
+                rank += count * 600
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log("ERROR verifying attests:", error)
+      }
+    }
+    return rank
+  }
+
   async submitUserInfo(ipfsHash) {
     const info = await origin.ipfsService.loadObjFromFile(ipfsHash)
     // we should verify the signature for this
     if (await this.hot.verifyProfile(info))
     {
       logger.info("submitting ipfsHash:", ipfsHash)
-      await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info})
+      const rank = await this.getRank(info.address, info)
+      await db.UserInfo.upsert({ethAddress:info.address, ipfsHash, info, rank})
       this.broadcastUpdated(info.address)
 
       return true
