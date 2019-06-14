@@ -812,7 +812,11 @@ export default class Webrtc {
               rank += 24 * 3600
               const count = attested.info && (attested.info.subscribers || attested.info.followers)
               if (count) {
-                rank += count * 600
+                let num = count
+                if (typeof num  == 'string') {
+                  num = parseInt(count.replace(/\,/g,''), 10)
+                }
+                rank += num * 600
               }
             }
           }
