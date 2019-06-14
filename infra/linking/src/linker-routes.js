@@ -86,6 +86,11 @@ router.get('/server-info/:version?', (req, res) => {
   }
 })
 
+router.get('/eth-usd', async (req, res) => {
+  const rate = await webrtc.getEthToUsdRate()
+  res.send({rate})
+})
+
 router.post('/call-wallet/:sessionToken', async (req, res) => {
   try {
     const clientToken = getClientToken(req)
