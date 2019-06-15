@@ -854,6 +854,7 @@ export default class Webrtc {
       } else {
         data.banned_info = userInfo.info
       }
+      data.hidden = userInfo.hidden
       data.banned = userInfo.banned
       data.reports = userInfo.flags
       data.blockingYou = (await this.getRedis(getBlockKey(watcherAddress, ethAddress))) ? true:undefined

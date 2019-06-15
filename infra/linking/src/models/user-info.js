@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
     ipfsHash: DataTypes.STRING(64),
     flags: DataTypes.INTEGER,
     banned: DataTypes.BOOLEAN,
+    hidden: DataTypes.BOOLEAN,
     rank: DataTypes.INTEGER
   }, {
     tableName: 'user_info'
