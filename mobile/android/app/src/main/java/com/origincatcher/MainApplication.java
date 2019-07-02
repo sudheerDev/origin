@@ -11,7 +11,6 @@ import com.reactcommunity.rnlocalize.RNLocalizePackage;
 import com.levelasquez.androidopensettings.AndroidOpenSettingsPackage;
 import com.rnfingerprint.FingerprintAuthPackage;
 import com.bebnev.RNUserAgentPackage;
-import io.sentry.RNSentryPackage;
 import com.swmansion.gesturehandler.react.RNGestureHandlerPackage;
 import com.dieam.reactnativepushnotification.ReactNativePushNotificationPackage;
 import com.reactnativecommunity.webview.RNCWebViewPackage;
@@ -43,7 +42,6 @@ public class MainApplication extends Application implements ReactApplication {
             new AndroidOpenSettingsPackage(),
             new FingerprintAuthPackage(),
             new RNUserAgentPackage(),
-            new RNSentryPackage(),
             new RNGestureHandlerPackage(),
             new ReactNativePushNotificationPackage(),
             new RNCWebViewPackage()

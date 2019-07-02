@@ -263,6 +263,7 @@ class MarketplaceApp extends React.Component {
         <_MarketplaceApp navigation={navigation} />
         <Modal visible={!this.props.marketplace.ready}>
           <Loading
+            testID="LoadingMarketplace"
             loadingText={loadingText}
             activityIndicator={activityIndicator}
             errorComponent={errorComponent}
