@@ -46,7 +46,6 @@
     "orbit-db": "^0.19.9",
     "per-env": "^1.0.2",
     "pg": "^7.11.0",
-    "pg-hstore": "^2.3.3",
     "rate-limiter-flexible": "^0.19.4",
     "sequelize-cli": "^5.5.0",
     "sequelize": "^5.8.12",
